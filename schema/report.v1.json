@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://katana.dev/schema/report.v1.json",
+  "title": "KatanaReportV1",
+  "description": "Katana Phase 1 MVP diagnosis report schema",
+  "type": "object",
+  "required": ["$schema", "target", "window", "diagnosis", "evidence", "stats"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "target": {
+      "type": "object",
+      "required": ["tgid", "pid", "comm", "start_time_ticks", "boot_id"],
+      "properties": {
+        "tgid": { "type": "integer" },
+        "pid": { "type": "integer" },
+        "comm": { "type": "string" },
+        "start_time_ticks": { "type": "integer" },
+        "boot_id": { "type": "string" }
+      }
+    },
+    "window": {
+      "type": "object",
+      "required": ["duration_ns", "t_start_ns", "t_end_ns"],
+      "properties": {
+        "duration_ns": { "type": "integer" },
+        "t_start_ns": { "type": "integer" },
+        "t_end_ns": { "type": "integer" }
+      }
+    },
+    "diagnosis": {
+      "type": "object",
+      "required": ["status", "alternatives", "context", "completeness", "limitations"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["Found", "Ambiguous", "NotBlocked", "Unknown", "Invalid"]
+        },
+        "primary": {
+          "type": ["object", "null"],
+          "properties": {
+            "kind": { "type": "string" },
+            "subject": {
+              "type": "object",
+              "properties": {
+                "tid": { "type": "integer" },
+                "tgid": { "type": "integer" }
+              }
+            },
+            "blocked_duration_ns": { "type": "integer" },
+            "explained_fraction_per_mille": { "type": "integer" },
+            "chain": { "type": ["object", "null"] },
+            "evidence_ids": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "weakest_strength": { "type": "string" },
+            "has_causal_edge": { "type": "boolean" },
+            "is_direct_subject": { "type": "boolean" },
+            "hop_count": { "type": "integer" },
+            "details": { "type": "string" },
+            "t_start": { "type": "integer" }
+          }
+        },
+        "alternatives": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "context": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "completeness": {
+          "type": "string",
+          "enum": ["Complete", "Partial", "Lossy", "Invalid"]
+        },
+        "limitations": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "class", "basis", "strength", "quality", "rule", "description"],
+        "properties": {
+          "id": { "type": "string" },
+          "class": {
+            "type": "string",
+            "enum": ["Causal", "Observed", "Correlated"]
+          },
+          "basis": {
+            "type": "string",
+            "enum": ["Direct", "Derived", "Statistical", "Snapshot"]
+          },
+          "strength": {
+            "type": "string",
+            "enum": ["Strong", "Moderate", "Weak"]
+          },
+          "quality": { "type": "object" },
+          "rule": { "type": "string" },
+          "description": { "type": "string" },
+          "provenance": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "cpu": { "type": "integer" },
+                "seq": { "type": "integer" }
+              }
+            }
+          },
+          "assumptions": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "limitations": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "required": ["events_received", "events_lost", "reserve_fail_total"],
+      "properties": {
+        "events_received": { "type": "integer" },
+        "events_lost": { "type": "integer" },
+        "reserve_fail_total": { "type": "integer" },
+        "tracked_full": { "type": "integer" },
+        "read_user_fail": { "type": "integer" }
+      }
+    }
+  }
+}
