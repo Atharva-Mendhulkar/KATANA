@@ -1,7 +1,9 @@
 use katana::diagnosis::{Completeness, DiagStatus, FindingKind};
 use katana::events::{Event, EventKind, LossLedger};
+use katana::evidence::Limitation;
 use katana::futex::{FutexCmd, FutexEnter, FutexExit, FUTEX_BITSET_MATCH_ANY};
 use katana::graph::TerminalReason;
+use katana::renderer::render_diagnosis;
 use katana::scheduler::{EventRef, SchedSwitch, SchedWaking, TaskState, ThreadId, WakerCtx};
 use katana::Engine;
 
@@ -644,3 +646,119 @@ fn test_target_identity_and_snapshot_live() {
     let verified = katana::target::verify_identity(&target, &target);
     assert!(verified, "Same identity must verify as valid");
 }
+
+#[test]
+fn test_unsupported_syscall_futex2() {
+    let engine = Engine::new(8);
+    let t1 = ThreadId::new(101, 100);
+
+    // futex2 syscall (e.g. sys_futex_waitv, nr=449 on x86_64) emitted for target thread
+    let events = vec![
+        Event::new(
+            1_000_000_000,
+            EventRef::new(0, 1),
+            t1,
+            EventKind::UnsupportedSyscall { nr: 449 },
+        ),
+    ];
+
+    let report = engine.analyze(100, Some(101), events, LossLedger::new());
+    assert_eq!(report.diagnosis.status, DiagStatus::Found);
+    let pri = report.diagnosis.primary.as_ref().unwrap();
+    assert_eq!(pri.kind, FindingKind::BlockedUnattributed);
+    assert!(pri.details.contains("futex2 / syscall 449"));
+    assert!(report.diagnosis.limitations.contains(&Limitation::Futex2NotSupported));
+    assert_eq!(report.diagnosis.completeness, Completeness::Partial);
+
+    let rendered = render_diagnosis(&report.diagnosis, false);
+    assert!(rendered.contains("was blocked in a state Katana cannot attribute in this version"));
+}
+
+#[test]
+fn test_negative_control_4b_timer_sleep() {
+    let engine = Engine::new(8);
+    let t1 = ThreadId::new(101, 100);
+
+    // Target T1 voluntarily sleeps for 10 ms (e.g. nanosleep); no futex or block I/O
+    let events = vec![
+        Event::new(
+            1_000_000_000,
+            EventRef::new(0, 1),
+            t1,
+            EventKind::Switch(SchedSwitch {
+                prev: t1,
+                next: ThreadId::new(999, 100),
+                prev_state: TaskState::Sleeping,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+        Event::new(
+            1_010_000_000, // 10 ms sleep
+            EventRef::new(0, 2),
+            t1,
+            EventKind::Switch(SchedSwitch {
+                prev: ThreadId::new(999, 100),
+                next: t1,
+                prev_state: TaskState::Running,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+    ];
+
+    let report = engine.analyze(100, Some(101), events, LossLedger::new());
+    assert_eq!(report.diagnosis.status, DiagStatus::Found);
+    let pri = report.diagnosis.primary.as_ref().unwrap();
+    assert_eq!(pri.kind, FindingKind::BlockedUnattributed);
+    assert!(pri.chain.is_none(), "Timer sleep must never imply a waker thread");
+    assert!(pri.details.contains("timer sleep"));
+
+    let rendered = render_diagnosis(&report.diagnosis, false);
+    assert!(rendered.contains("was blocked in a state Katana cannot attribute in this version"));
+}
+
+#[test]
+fn test_unattributed_iowait_without_device() {
+    let engine = Engine::new(8);
+    let t1 = ThreadId::new(101, 100);
+
+    // Target T1 sleeps in iowait for 10 ms, but NO block_rq_* events occurred
+    let events = vec![
+        Event::new(
+            1_000_000_000,
+            EventRef::new(0, 1),
+            t1,
+            EventKind::Switch(SchedSwitch {
+                prev: t1,
+                next: ThreadId::new(999, 100),
+                prev_state: TaskState::IoWait,
+                preempted: false,
+                in_iowait: true,
+            }),
+        ),
+        Event::new(
+            1_010_000_000,
+            EventRef::new(0, 2),
+            t1,
+            EventKind::Switch(SchedSwitch {
+                prev: ThreadId::new(999, 100),
+                next: t1,
+                prev_state: TaskState::Running,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+    ];
+
+    let report = engine.analyze(100, Some(101), events, LossLedger::new());
+    assert_eq!(report.diagnosis.status, DiagStatus::Found);
+    let pri = report.diagnosis.primary.as_ref().unwrap();
+    assert_eq!(pri.kind, FindingKind::BlockedUnattributed);
+    assert!(pri.details.contains("unattributed iowait"));
+
+    let rendered = render_diagnosis(&report.diagnosis, false);
+    // Per PRD §32.1: in_iowait flag alone NEVER names a device
+    assert!(!rendered.contains("blocked on device"));
+}
+

@@ -99,6 +99,7 @@ pub enum Limitation {
     UnrelatedWaker,
     WritebackUnattributed,
     AsyncHandoffUnattributed,
+    Futex2NotSupported,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -154,6 +154,13 @@ pub fn render_diagnosis(diag: &Diagnosis, verbose: bool) -> String {
                             MANDATORY_CORRELATION_SUFFIX
                         ));
                     }
+                    FindingKind::BlockedUnattributed => {
+                        out.push_str(&format!(
+                            "Thread {} was blocked in a state Katana cannot attribute in this version ({}). Katana makes no claim about the cause.\n",
+                            pri.subject.tid,
+                            pri.details
+                        ));
+                    }
                     _ => {
                         out.push_str(&format!("Thread {}: {}\n", pri.subject.tid, pri.details));
                     }

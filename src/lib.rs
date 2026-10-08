@@ -88,6 +88,8 @@ impl Engine {
         let mut thread_sleep_intervals: HashMap<u32, (u64, ThreadId, bool)> = HashMap::new();
         let mut direct_block_waits: Vec<(ThreadId, u32, u64, u64, String)> = Vec::new();
         let mut correlated_block_io: Vec<(ThreadId, u32, u64, u64, String)> = Vec::new();
+        let mut unattributed_sleeps: Vec<(ThreadId, u64, u64, bool)> = Vec::new();
+        let mut unsupported_syscalls: Vec<(ThreadId, u32, u64)> = Vec::new();
 
         let mut next_edge_id = 1u64;
 
@@ -290,6 +292,8 @@ impl Engine {
 
                                 correlated_block_io.push((sleeping_thread, dev_id, sleep_start, sleep_dur, ev_id));
                             }
+                        } else if sleep_dur >= MIN_BLOCK_NS {
+                            unattributed_sleeps.push((sleeping_thread, sleep_start, sleep_dur, _in_iowait));
                         }
                     }
                 }
@@ -434,6 +438,9 @@ impl Engine {
                         wait.close_by_exit(ev.ts_ns, ev.r#ref);
                         all_waits.push(wait);
                     }
+                }
+                EventKind::UnsupportedSyscall { nr } => {
+                    unsupported_syscalls.push((ev.thread, *nr, ev.ts_ns));
                 }
                 _ => {}
             }
@@ -614,6 +621,53 @@ impl Engine {
             }
         }
 
+        // Check unsupported syscalls for subject (e.g. futex2, PRD §10.2, §32.2)
+        if let Some((_, nr, ts)) = unsupported_syscalls.iter().find(|(t, ..)| t.tid == subject.tid) {
+            limitations.push(Limitation::Futex2NotSupported);
+            candidates.push(Finding {
+                kind: FindingKind::BlockedUnattributed,
+                subject,
+                blocked_duration_ns: 0,
+                explained_fraction_per_mille: 0,
+                chain: None,
+                evidence_ids: Vec::new(),
+                weakest_strength: EvidenceStrength::Weak,
+                has_causal_edge: false,
+                is_direct_subject: true,
+                hop_count: 0,
+                details: format!("futex2 / syscall {} not supported in this version", nr),
+                t_start: *ts,
+            });
+        }
+
+        // Check generic unattributed sleep intervals (e.g. nanosleep or unattributed iowait)
+        if candidates.is_empty() {
+            if let Some((_, start_ts, dur, in_iowait)) = unattributed_sleeps
+                .iter()
+                .filter(|(t, ..)| t.tid == subject.tid)
+                .max_by_key(|(.., d, _)| *d)
+            {
+                candidates.push(Finding {
+                    kind: FindingKind::BlockedUnattributed,
+                    subject,
+                    blocked_duration_ns: *dur,
+                    explained_fraction_per_mille: 300,
+                    chain: None,
+                    evidence_ids: Vec::new(),
+                    weakest_strength: EvidenceStrength::Weak,
+                    has_causal_edge: false,
+                    is_direct_subject: true,
+                    hop_count: 0,
+                    details: if *in_iowait {
+                        "unattributed iowait (device unknown)".to_string()
+                    } else {
+                        "timer sleep / unattributed wait (waker unattributed)".to_string()
+                    },
+                    t_start: *start_ts,
+                });
+            }
+        }
+
         // If no blocked interval qualifies, emit NOT_BLOCKED
         if candidates.is_empty() {
             candidates.push(Finding {
@@ -635,7 +689,9 @@ impl Engine {
         // 4. Completeness determination (PRD §13.4)
         let completeness = if !loss_ledger.is_empty() {
             Completeness::Lossy
-        } else if candidates.iter().any(|c| c.chain.as_ref().map_or(false, |ch| ch.hops.len() >= 8)) {
+        } else if !limitations.is_empty()
+            || candidates.iter().any(|c| c.chain.as_ref().map_or(false, |ch| ch.hops.len() >= 8))
+        {
             Completeness::Partial
         } else {
             Completeness::Complete

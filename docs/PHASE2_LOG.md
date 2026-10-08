@@ -93,7 +93,16 @@ Phase 2 transitions Katana from Phase 1 MVP (pure scheduler + futex analysis) to
 
 ---
 
-## 4. Test Suite Matrix (26/26 Tests Passing)
+### 3.11 Unsupported Attribution & Negative Controls (PRD §15.2, §32.1, §32.2)
+- Added handling for `FindingKind::BlockedUnattributed`:
+  - Formats output per PRD §15.2: `"{subject} was blocked in a state Katana cannot attribute in this version ({reason}). Katana makes no claim about the cause."`
+  - Futex2 detection (`EventKind::UnsupportedSyscall`) attaches `Limitation::Futex2NotSupported` and reduces completeness to `Partial`.
+  - Negative control 4b timer sleep (`nanosleep`) attributes zero false wakers.
+  - Unattributed `in_iowait` preserves the strict PRD §32.1 invariant: `in_iowait flag alone never names a device`.
+
+---
+
+## 4. Test Suite Matrix (29/29 Tests Passing)
 
 ```text
 running 2 tests (tests/anti_inflation_tests.rs)
@@ -112,22 +121,25 @@ test test_resolve_dev_name ... ok
 test test_bio_replay_fixtures ... ok
 test result: ok. 8 passed; 0 failed
 
-running 9 tests (tests/fault_injection_tests.rs)
+running 12 tests (tests/fault_injection_tests.rs)
 test test_chain_cycle_detection_3d ... ok
 test test_event_loss_ring_overflow_5 ... ok
-test test_futex_operation_variants_1c ... ok
 test test_negative_control_4 ... ok
 test test_multi_hop_wakeup_chain_3 ... ok
+test test_negative_control_4b_timer_sleep ... ok
 test test_process_exit_during_window_6 ... ok
+test test_futex_operation_variants_1c ... ok
 test test_sched_runq_delay_2 ... ok
+test test_unattributed_iowait_without_device ... ok
+test test_unsupported_syscall_futex2 ... ok
 test test_target_identity_and_snapshot_live ... ok
 test test_replay_determinism_and_monotonicity_8 ... ok
-test result: ok. 9 passed; 0 failed
+test result: ok. 12 passed; 0 failed
 
 running 7 tests (tests/fw1_tests.rs)
 test test_futex_wake_cross_cpu ... ok
-test test_futex_wake_event_loss ... ok
 test test_futex_wake_migration ... ok
+test test_futex_wake_event_loss ... ok
 test test_futex_wake_multi_waiter ... ok
 test test_futex_wake_unrelated_waker ... ok
 test test_futex_wake_single_waiter ... ok
