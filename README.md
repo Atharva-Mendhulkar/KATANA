@@ -28,19 +28,27 @@ Katana focuses on single-command, bounded-overhead post-incident diagnosis on pr
 
 ---
 
-## Current Status (Phase 1 MVP)
+## Current Status (Phase 2 Implemented & Validated)
 
-Phase 1 MVP is **implemented and tested**:
-- **Core Pipeline:** Wire decoding, normalizer, and per-CPU sequence gap loss ledger ([`src/events.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/events.rs)).
-- **Futex & Scheduler Instrumentation:** Op decoding, private/shared futex keys, PI snapshot word decoding ([`src/futex.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/futex.rs), [`src/scheduler.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/scheduler.rs)).
-- **Causal Rule Catalog:** Rule **FW-1** (futex wake attribution), FW-2, WK-1, FB-1, PI-1, SW-1, SW-2, and CR-1 ([`src/evidence.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/evidence.rs), [`src/causal_rules.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/causal_rules.rs)).
-- **Causal Graph & Chains:** Multi-hop backward walk, depth cap (8), and cycle detection ([`src/graph.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/graph.rs)).
-- **Diagnosis Engine:** 8-criterion lexicographic ranking model ([`src/diagnosis.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/diagnosis.rs)).
-- **Anti-Inflation Renderer:** Allowed-verb table preventing claim inflation ([`src/renderer.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/renderer.rs)).
-- **JSON Schema:** Validated against [`schema/report.v1.json`](file:///Users/atharvamendhulkar/desktop/katana/schema/report.v1.json).
-- **Test Suite:** 17/17 tests passing across unit, fault injection, and anti-inflation suites.
+Katana has transitioned to **Phase 2** with block I/O attribution, eBPF in-kernel programs, and unsupported attribution guards:
+- **Block I/O Subsystem (PRD §32.1):**
+  - **Rule BIO-1:** Causal attribution for direct synchronous block I/O (`O_DIRECT`/`fsync`) with submitter context match, completion timestamp alignment, and request ID pairing.
+  - **Rule BIO-2:** Structural clamp for asynchronous writeback (`kworker`/flushers); strictly classified as `CORRELATED` with mandatory disclaimer: *"This trace does not establish a causal link."*
+  - **Sysfs Device Resolver:** Resolves `dev_t` to device leaf names (`sda1`, `nvme0n1`) via `/sys/dev/block/<major>:<minor>`.
+- **eBPF In-Kernel Tracing (`bpf/`):**
+  - Tracepoint hooks for `sched:sched_switch`, `sched:sched_waking`, `syscalls:sys_enter/exit_futex`, `block:block_rq_issue`, and `block:block_rq_complete`.
+  - Zero-dependency binary wire decoder (`Event::decode_raw`) for packed kernel frames.
+  - Formally validated by `scripts/check-scope.sh` against the normative kernel hook allow-list.
+- **Target Lifecycle & Safeguards:**
+  - Initial/final `/proc/<pid>` snapshotting, `--tid` validation, privilege preflight (exit 10 for unprivileged live runs), and PID reuse verification (exit 4).
+- **Unsupported & Negative Controls:**
+  - Futex2 syscall detection (`sys_enter_futex_waitv`) reporting `Limitation::Futex2NotSupported` and `Completeness::Partial`.
+  - Negative control 4b timer sleep (`nanosleep`) reporting `BlockedUnattributed` without false waker claims.
+  - Unattributed `in_iowait` states report uninstrumented wait without inventing device names.
+- **Replay Fixtures:** Committed golden traces in `fixtures/` (`bio1_sync_io.json`, `bio2_writeback.json`).
+- **Test Suite:** **29/29 tests passing** across 4 test suites (`block_io_tests`, `fault_injection_tests`, `fw1_tests`, `anti_inflation_tests`).
 
-See [`docs/PHASE1_MVP.md`](file:///Users/atharvamendhulkar/desktop/katana/docs/PHASE1_MVP.md) for detailed technical specifications and [`prd.md`](file:///Users/atharvamendhulkar/desktop/katana/prd.md) for full requirements.
+See [`docs/PHASE1_MVP.md`](file:///home/topfloorboss/Desktop/KATANA/docs/PHASE1_MVP.md) and [`docs/PHASE2_LOG.md`](file:///home/topfloorboss/Desktop/KATANA/docs/PHASE2_LOG.md) for implementation logs, and [`docs/LIMITATIONS.md`](file:///home/topfloorboss/Desktop/KATANA/docs/LIMITATIONS.md) for OTQ review and design boundaries.
 
 ---
 
@@ -52,14 +60,17 @@ See [`docs/PHASE1_MVP.md`](file:///Users/atharvamendhulkar/desktop/katana/docs/P
 # Build binary and library
 cargo build
 
-# Run complete test suite (FW-1, fault injection, anti-inflation invariants)
+# Run complete test suite (29 tests)
 cargo test
+
+# Verify eBPF scope guard
+./scripts/check-scope.sh
 ```
 
 ### Usage
 
 ```bash
-# Analyze a target process by PID (default 3000ms window)
+# Analyze a target process by PID (default 3000ms window, requires root/CAP_BPF)
 katana explain 4217
 
 # Target specific thread with custom duration
@@ -68,8 +79,9 @@ katana explain 4217 --tid 4220 --duration 2000ms
 # Emit machine-readable JSON adhering to schema/report.v1.json
 katana explain 4217 --json
 
-# Replay a recorded trace file
-katana explain 4217 --replay fixtures/contention.json
+# Replay a recorded trace file (unprivileged user space)
+katana explain --replay fixtures/bio1_sync_io.json --json
+katana explain --replay fixtures/bio2_writeback.json
 ```
 
 ---
