@@ -154,6 +154,25 @@ Lock status: owner: unknown (non-PI futex)
 
 ---
 
+## Documentation Index
+
+Per [prd.md §29](file:///home/topfloorboss/Desktop/KATANA/prd.md), Katana maintains dedicated documentation artifacts:
+
+| Document | Purpose |
+|---|---|
+| [`docs/ARCHITECTURE.md`](file:///home/topfloorboss/Desktop/KATANA/docs/ARCHITECTURE.md) | Component data flow, thread model, and wire event specifications |
+| [`docs/DEVELOPMENT.md`](file:///home/topfloorboss/Desktop/KATANA/docs/DEVELOPMENT.md) | Build dependencies, compilation, capabilities, and dev workflow |
+| [`docs/TESTING.md`](file:///home/topfloorboss/Desktop/KATANA/docs/TESTING.md) | Fault injection test suites (Tests 1–8, BIO-1/2) and reproducibility |
+| [`docs/EVIDENCE_MODEL.md`](file:///home/topfloorboss/Desktop/KATANA/docs/EVIDENCE_MODEL.md) | Evidence taxonomy, allowed-verb vocabulary, and anti-inflation types |
+| [`docs/KERNEL_COMPATIBILITY.md`](file:///home/topfloorboss/Desktop/KATANA/docs/KERNEL_COMPATIBILITY.md) | Kernel version compatibility matrix across 5.15–6.12+ |
+| [`docs/LIMITATIONS.md`](file:///home/topfloorboss/Desktop/KATANA/docs/LIMITATIONS.md) | Operational boundaries, OTQ experimental log, and non-claims |
+| [`benchmarks/BENCHMARKS.md`](file:///home/topfloorboss/Desktop/KATANA/benchmarks/BENCHMARKS.md) | Methodology, hardware characterization, and trial results |
+| [`docs/adr/`](file:///home/topfloorboss/Desktop/KATANA/docs/adr/README.md) | Immutable Architecture Decision Records (ADR-001 through ADR-013) |
+| [`docs/PHASE1_MVP.md`](file:///home/topfloorboss/Desktop/KATANA/docs/PHASE1_MVP.md) | Phase 1 milestone log and implementation archive |
+| [`docs/PHASE2_LOG.md`](file:///home/topfloorboss/Desktop/KATANA/docs/PHASE2_LOG.md) | Phase 2 implementation log and roadmap progression |
+
+---
+
 ## Limitations
 
-For known operational boundaries, see [`docs/PHASE1_MVP.md`](file:///Users/atharvamendhulkar/desktop/katana/docs/PHASE1_MVP.md) and [`prd.md`](file:///Users/atharvamendhulkar/desktop/katana/prd.md) §10.6, §12.5, and §16.3.
+For known operational boundaries, see [`docs/LIMITATIONS.md`](file:///home/topfloorboss/Desktop/KATANA/docs/LIMITATIONS.md), [`docs/PHASE1_MVP.md`](file:///home/topfloorboss/Desktop/KATANA/docs/PHASE1_MVP.md), and [`prd.md`](file:///home/topfloorboss/Desktop/KATANA/prd.md) §10.6, §12.5, and §16.3.

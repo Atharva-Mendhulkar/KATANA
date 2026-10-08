@@ -155,3 +155,41 @@ test test_futex_wake_single_waiter ... ok
 test test_futex_wake_wrong_key ... ok
 test result: ok. 7 passed; 0 failed
 ```
+
+---
+
+## 5. Documentation Suite Completion (PRD §29, Milestone M16)
+
+The complete PRD §29 documentation artifact table is fulfilled:
+1. **`README.md`:** Prior-art positioning (§6), updated status, quick start, usage, exit codes, and cross-links to all specifications.
+2. **`docs/ARCHITECTURE.md`:** Condensed §7–§12 data flow, component matrix matching code, two-thread offline model, and normative hook list.
+3. **`docs/DEVELOPMENT.md`:** Build dependencies (`clang`, `libbpf`, `bpftool`, Rust toolchain), privilege options (`setcap`, `sudo`, QEMU VM), and dev invariants.
+4. **`docs/TESTING.md`:** Comprehensive test strategy, ground truth fault-injection table (Tests 1–8, BIO-1/2), and fixture authoring guide.
+5. **`docs/EVIDENCE_MODEL.md`:** Single source of truth for evidence classes (`Causal`, `Correlated`, `Observed`), monotonic ceilings, and allowed-verb vocabulary.
+6. **`docs/KERNEL_COMPATIBILITY.md`:** Linux kernel compatibility matrix across 5.15–6.12+ (x86_64, arm64) with OTQ statuses.
+7. **`docs/LIMITATIONS.md`:** Operational boundaries, non-claims, OTQ-1..14 experimental review, and anti-inflation invariants.
+8. **`benchmarks/BENCHMARKS.md`:** Methodology (PRD §24), hardware characterization (Intel i7 SATA SSD/HDD), and release microbenchmark results.
+9. **`docs/adr/`:** Immutable Architecture Decision Records:
+   - `ADR-001`: Rust userspace runtime
+   - `ADR-002`: C eBPF CO-RE + libbpf-rs loader
+   - `ADR-003`: Shared BPF ring buffer
+   - `ADR-004`: Stable tracepoints over kprobes
+   - `ADR-005`: Targeted PID tracing with in-kernel expansion
+   - `ADR-006`: Deterministic lexicographic ranking over ML/LLMs
+   - `ADR-007`: Explicit evidence classes and anti-inflation types
+   - `ADR-008`: Refusal of non-PI mutex ownership inference
+   - `ADR-009`: Scheduler and futex scope for Phase 1
+   - `ADR-010`: Deferral of Block I/O (superseded by ADR-013)
+   - `ADR-011`: Offline two-thread architecture without async runtime
+   - `ADR-012`: Snapshot-plus-window temporal semantics
+   - `ADR-013`: Phase 2 Block I/O attribution rules (BIO-1 and BIO-2)
+
+---
+
+## 6. Phase 2 Exit Criteria & Phase 3 Gate
+
+- **Phase 2 Status:** COMPLETE. All acceptance criteria in PRD §32.1 (Rule BIO-1 direct sync, Rule BIO-2 writeback correlation, sysfs device mapping, wire decoders, synthetic multi-drive NVMe benchmark) and PRD §29 (documentation) are implemented, tested (29/29 tests), and committed.
+- **Phase 3 Scope (PRD §33):**
+  - Continuous watch mode with ring-buffer-in-kernel bounded retention.
+  - Static HTML graph visualization export (pure zero-dependency HTML/SVG/CSS; no server).
+  - External BTF repository integration for kernels lacking built-in `CONFIG_DEBUG_INFO_BTF`.
