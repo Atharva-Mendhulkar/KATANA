@@ -44,6 +44,8 @@ pub enum RuleId {
     Sw1,
     Sw2,
     Cr1,
+    Bio1,
+    Bio2,
 }
 
 impl RuleId {
@@ -58,6 +60,8 @@ impl RuleId {
             RuleId::Sw1 => EvidenceClass::Causal,
             RuleId::Sw2 => EvidenceClass::Observed,
             RuleId::Cr1 => EvidenceClass::Correlated, // CR-1 CAN NEVER PRODUCE CAUSAL
+            RuleId::Bio1 => EvidenceClass::Causal,    // Direct sync block I/O link
+            RuleId::Bio2 => EvidenceClass::Correlated, // BIO-2 CAN NEVER PRODUCE CAUSAL
         }
     }
 
@@ -72,6 +76,8 @@ impl RuleId {
             RuleId::Sw1 => "SW-1",
             RuleId::Sw2 => "SW-2",
             RuleId::Cr1 => "CR-1",
+            RuleId::Bio1 => "BIO-1",
+            RuleId::Bio2 => "BIO-2",
         }
     }
 }
@@ -91,6 +97,8 @@ pub enum Limitation {
     ClockDiscontinuity,
     TargetExited,
     UnrelatedWaker,
+    WritebackUnattributed,
+    AsyncHandoffUnattributed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

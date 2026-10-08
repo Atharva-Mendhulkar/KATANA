@@ -1,3 +1,4 @@
+pub mod block_io;
 pub mod cli;
 pub mod diagnosis;
 pub mod events;
@@ -14,6 +15,7 @@ pub mod causal_rules;
 
 use std::collections::HashMap;
 
+use block_io::{resolve_dev_name, BlockRqComplete, BlockRqIssue};
 use diagnosis::{Completeness, Diagnosis, Finding, FindingKind};
 use events::{normalize_and_detect_loss, Event, EventKind, LossLedger};
 use evidence::{
@@ -78,6 +80,13 @@ impl Engine {
 
         // Track preemptions: (preempted_tid, preemptor_tid, ts)
         let mut preemptions: Vec<(u32, u32, u64)> = Vec::new();
+
+        // Track Block I/O requests and completed sleep intervals (PRD §32.1)
+        let mut open_block_requests: HashMap<u64, BlockRqIssue> = HashMap::new();
+        let mut completed_block_requests: Vec<(BlockRqIssue, BlockRqComplete)> = Vec::new();
+        let mut thread_sleep_intervals: HashMap<u32, (u64, ThreadId, bool)> = HashMap::new();
+        let mut direct_block_waits: Vec<(ThreadId, u32, u64, u64, String)> = Vec::new();
+        let mut correlated_block_io: Vec<(ThreadId, u32, u64, u64, String)> = Vec::new();
 
         let mut next_edge_id = 1u64;
 
@@ -169,6 +178,8 @@ impl Engine {
                             provenance: vec![ev.r#ref],
                             limitations: Vec::new(),
                         });
+                    } else {
+                        thread_sleep_intervals.insert(switch.prev.tid, (ev.ts_ns, switch.prev, switch.in_iowait));
                     }
 
                     // Check if switch.next had pending runq delay
@@ -191,6 +202,93 @@ impl Engine {
                                 provenance: vec![ev.r#ref],
                                 limitations: Vec::new(),
                             });
+                        }
+                    }
+
+                    // Check if switch.next had a completed sleep that matched Block I/O (PRD §32.1)
+                    if let Some((sleep_start, sleeping_thread, _in_iowait)) = thread_sleep_intervals.remove(&switch.next.tid) {
+                        let sleep_dur = ev.ts_ns.saturating_sub(sleep_start);
+                        let matching_comp = completed_block_requests.iter().find(|(_iss, comp)| {
+                            comp.complete_ts >= sleep_start && comp.complete_ts <= ev.ts_ns + 50_000
+                        });
+
+                        if let Some((iss, _comp)) = matching_comp {
+                            let dev_id = iss.dev_id;
+                            if iss.submitter.tid == sleeping_thread.tid {
+                                // Rule BIO-1: Direct synchronous block I/O attribution
+                                let edge_id = next_edge_id;
+                                next_edge_id += 1;
+                                graph.add_edge(Edge {
+                                    id: edge_id,
+                                    src: Node::Device(dev_id),
+                                    dst: Node::Thread(sleeping_thread),
+                                    relation: Relation::BlockedOnDevice,
+                                    t_start: sleep_start,
+                                    t_end: ev.ts_ns,
+                                    class: EvidenceClass::Causal,
+                                    basis: EvidenceBasis::Derived,
+                                    rule: RuleId::Bio1,
+                                    provenance: vec![ev.r#ref],
+                                    limitations: Vec::new(),
+                                });
+
+                                let ev_id = format!("E{}", evidence_counter);
+                                evidence_counter += 1;
+                                evidence_records.push(Evidence::new(
+                                    ev_id.clone(),
+                                    EvidenceClass::Causal,
+                                    EvidenceBasis::Derived,
+                                    EvidenceStrength::Moderate,
+                                    EvidenceQuality::Full,
+                                    RuleId::Bio1,
+                                    format!(
+                                        "TID {} blocked on device 0x{:x} (req 0x{:x}, {} sectors) for {} ms",
+                                        sleeping_thread.tid, dev_id, iss.req_id, iss.nr_sector, sleep_dur / 1_000_000
+                                    ),
+                                    vec![ev.r#ref],
+                                    vec!["ASSUME_BLOCK_REQ_LINK".to_string()],
+                                    Vec::new(),
+                                ));
+
+                                direct_block_waits.push((sleeping_thread, dev_id, sleep_start, sleep_dur, ev_id));
+                            } else {
+                                // Rule BIO-2: Writeback / kworker or uncorrelated device latency
+                                let edge_id = next_edge_id;
+                                next_edge_id += 1;
+                                graph.add_edge(Edge {
+                                    id: edge_id,
+                                    src: Node::Device(dev_id),
+                                    dst: Node::Thread(sleeping_thread),
+                                    relation: Relation::BlockDeviceLatencyCorrelated,
+                                    t_start: sleep_start,
+                                    t_end: ev.ts_ns,
+                                    class: EvidenceClass::Correlated,
+                                    basis: EvidenceBasis::Statistical,
+                                    rule: RuleId::Bio2,
+                                    provenance: vec![ev.r#ref],
+                                    limitations: vec![Limitation::WritebackUnattributed],
+                                });
+
+                                let ev_id = format!("E{}", evidence_counter);
+                                evidence_counter += 1;
+                                evidence_records.push(Evidence::new(
+                                    ev_id.clone(),
+                                    EvidenceClass::Correlated,
+                                    EvidenceBasis::Statistical,
+                                    EvidenceStrength::Weak,
+                                    EvidenceQuality::Full,
+                                    RuleId::Bio2,
+                                    format!(
+                                        "TID {} experienced blocking coinciding with writeback/device 0x{:x} activity. This trace does not establish a causal link.",
+                                        sleeping_thread.tid, dev_id
+                                    ),
+                                    vec![ev.r#ref],
+                                    Vec::new(),
+                                    vec![Limitation::WritebackUnattributed],
+                                ));
+
+                                correlated_block_io.push((sleeping_thread, dev_id, sleep_start, sleep_dur, ev_id));
+                            }
                         }
                     }
                 }
@@ -320,6 +418,14 @@ impl Engine {
                     } else if let Some(mut wait) = open_waits.remove(&ev.thread.tid) {
                         wait.close(ev.ts_ns, ev.r#ref, exit.ret);
                         all_waits.push(wait);
+                    }
+                }
+                EventKind::BlockRqIssue(issue) => {
+                    open_block_requests.insert(issue.req_id, issue.clone());
+                }
+                EventKind::BlockRqComplete(complete) => {
+                    if let Some(issue) = open_block_requests.remove(&complete.req_id) {
+                        completed_block_requests.push((issue, complete.clone()));
                     }
                 }
                 EventKind::Exit => {
@@ -455,6 +561,54 @@ impl Engine {
                     hop_count: 0,
                     details: format!("Runqueue delay of {} ms on CPU {}", max_delay / 1_000_000, cpu),
                     t_start: *wake_ts,
+                });
+            }
+        }
+
+        // Check direct block I/O candidate (Rule BIO-1)
+        if let Some((_, dev_id, start_ts, dur, ev_id)) = direct_block_waits
+            .iter()
+            .filter(|(t, ..)| t.tid == subject.tid)
+            .max_by_key(|(.., d, _)| *d)
+        {
+            if *dur >= MIN_BLOCK_NS {
+                candidates.push(Finding {
+                    kind: FindingKind::BlockIoWait,
+                    subject,
+                    blocked_duration_ns: *dur,
+                    explained_fraction_per_mille: 1000,
+                    chain: None,
+                    evidence_ids: vec![ev_id.clone()],
+                    weakest_strength: EvidenceStrength::Moderate,
+                    has_causal_edge: true,
+                    is_direct_subject: true,
+                    hop_count: 1,
+                    details: resolve_dev_name(*dev_id),
+                    t_start: *start_ts,
+                });
+            }
+        }
+
+        // Check correlated block I/O candidate (Rule BIO-2)
+        if let Some((_, dev_id, start_ts, dur, ev_id)) = correlated_block_io
+            .iter()
+            .filter(|(t, ..)| t.tid == subject.tid)
+            .max_by_key(|(.., d, _)| *d)
+        {
+            if *dur >= MIN_BLOCK_NS {
+                candidates.push(Finding {
+                    kind: FindingKind::BlockIoCorrelated,
+                    subject,
+                    blocked_duration_ns: *dur,
+                    explained_fraction_per_mille: 500,
+                    chain: None,
+                    evidence_ids: vec![ev_id.clone()],
+                    weakest_strength: EvidenceStrength::Weak,
+                    has_causal_edge: false, // BIO-2 CAN NEVER BE CAUSAL
+                    is_direct_subject: true,
+                    hop_count: 0,
+                    details: resolve_dev_name(*dev_id),
+                    t_start: *start_ts,
                 });
             }
         }

@@ -33,3 +33,75 @@ pub fn resolve_target(pid: u32) -> Result<TargetIdentity, String> {
         boot_id,
     })
 }
+
+/// Point-in-time snapshot of an individual thread's state (PRD §5.1, §7.1, ADR-012).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ThreadSnapshot {
+    pub tid: u32,
+    pub state: char,
+    pub wchan: Option<String>,
+    pub syscall: Option<i64>,
+}
+
+/// Point-in-time snapshot of target process threads from /proc (PRD §5.1, §7.1).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct TargetSnapshot {
+    pub pid: u32,
+    pub timestamp_ns: u64,
+    pub threads: Vec<ThreadSnapshot>,
+}
+
+/// Takes a /proc state snapshot of target process threads.
+pub fn take_snapshot(pid: u32) -> Result<TargetSnapshot, String> {
+    let task_dir = format!("/proc/{}/task", pid);
+    let entries = fs::read_dir(&task_dir)
+        .map_err(|e| format!("Cannot read {}: {}", task_dir, e))?;
+
+    let mut threads = Vec::new();
+    for entry in entries.flatten() {
+        if let Ok(tid_str) = entry.file_name().into_string() {
+            if let Ok(tid) = tid_str.parse::<u32>() {
+                let stat_path = format!("/proc/{}/task/{}/stat", pid, tid);
+                let state = fs::read_to_string(&stat_path)
+                    .ok()
+                    .and_then(|content| {
+                        let close_paren = content.rfind(')')?;
+                        content[close_paren + 1..].split_whitespace().next()?.chars().next()
+                    })
+                    .unwrap_or('?');
+
+                let wchan = fs::read_to_string(format!("/proc/{}/task/{}/wchan", pid, tid))
+                    .ok()
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty() && s != "0");
+
+                let syscall = fs::read_to_string(format!("/proc/{}/task/{}/syscall", pid, tid))
+                    .ok()
+                    .and_then(|s| s.split_whitespace().next().and_then(|n| n.parse::<i64>().ok()));
+
+                threads.push(ThreadSnapshot {
+                    tid,
+                    state,
+                    wchan,
+                    syscall,
+                });
+            }
+        }
+    }
+
+    Ok(TargetSnapshot {
+        pid,
+        timestamp_ns: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0),
+        threads,
+    })
+}
+
+/// Verifies that target identity has not changed across the observation window (PRD §5.1).
+pub fn verify_identity(initial: &TargetIdentity, current: &TargetIdentity) -> bool {
+    initial.tgid == current.tgid
+        && initial.start_time_ticks == current.start_time_ticks
+        && initial.boot_id == current.boot_id
+}

@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::block_io::{BlockRqComplete, BlockRqIssue};
 use crate::futex::{FutexEnter, FutexExit};
 use crate::scheduler::{EventRef, SchedSwitch, SchedWaking, SchedWakeup, ThreadId};
 
@@ -14,6 +15,8 @@ pub enum EventKind {
     Exit,
     FutexEnter(FutexEnter),
     FutexExit(FutexExit),
+    BlockRqIssue(BlockRqIssue),
+    BlockRqComplete(BlockRqComplete),
     UnsupportedSyscall { nr: u32 },
 }
 

@@ -138,6 +138,22 @@ pub fn render_diagnosis(diag: &Diagnosis, verbose: bool) -> String {
                             pri.subject.tid, NON_PI_OWNER_UNKNOWN
                         ));
                     }
+                    FindingKind::BlockIoWait => {
+                        out.push_str(&format!(
+                            "Thread {} blocked on device {}. Block duration: {} ms.\n",
+                            pri.subject.tid,
+                            pri.details,
+                            pri.blocked_duration_ns / 1_000_000
+                        ));
+                    }
+                    FindingKind::BlockIoCorrelated => {
+                        out.push_str(&format!(
+                            "Thread {} experienced blocking during an interval in which device {} exhibited activity or elevated latency. {}\n",
+                            pri.subject.tid,
+                            pri.details,
+                            MANDATORY_CORRELATION_SUFFIX
+                        ));
+                    }
                     _ => {
                         out.push_str(&format!("Thread {}: {}\n", pri.subject.tid, pri.details));
                     }

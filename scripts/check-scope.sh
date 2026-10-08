@@ -9,8 +9,8 @@ if [ ! -d "$BPF_DIR" ]; then
     exit 0
 fi
 
-# Allowed SEC(...) definitions in C eBPF source files
-ALLOWED_SECTIONS='^(tp/sched/sched_switch|tp/sched/sched_waking|tp/sched/sched_wakeup|tp/sched/sched_wakeup_new|tp/sched/sched_process_fork|tp/sched/sched_process_exit|tp/syscalls/sys_enter_futex|tp/syscalls/sys_exit_futex|tp/syscalls/sys_enter_futex_waitv|tp/syscalls/sys_enter_futex_wait|tp/syscalls/sys_enter_futex_wake|tp/syscalls/sys_enter_futex_requeue)$'
+# Allowed SEC(...) definitions in C eBPF source files (PRD §8.2, §32.1 Phase 2)
+ALLOWED_SECTIONS='^(\.maps|license|tp/sched/sched_switch|tp/sched/sched_waking|tp/sched/sched_wakeup|tp/sched/sched_wakeup_new|tp/sched/sched_process_fork|tp/sched/sched_process_exit|tp/syscalls/sys_enter_futex|tp/syscalls/sys_exit_futex|tp/syscalls/sys_enter_futex_waitv|tp/syscalls/sys_enter_futex_wait|tp/syscalls/sys_enter_futex_wake|tp/syscalls/sys_enter_futex_requeue|tp/block/block_rq_issue|tp/block/block_rq_complete)$'
 
 FAIL=0
 

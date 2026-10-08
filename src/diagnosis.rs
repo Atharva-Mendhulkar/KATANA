@@ -16,6 +16,8 @@ pub enum FindingKind {
     SchedRunqDelay,
     SchedPreempted,
     BlockedUnattributed,
+    BlockIoWait,
+    BlockIoCorrelated,
     NotBlocked,
     Unknown,
 }

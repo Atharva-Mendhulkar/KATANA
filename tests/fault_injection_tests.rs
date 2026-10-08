@@ -629,3 +629,18 @@ fn test_replay_determinism_and_monotonicity_8() {
         assert!(!pri_red.has_causal_edge);
     }
 }
+
+#[test]
+fn test_target_identity_and_snapshot_live() {
+    let my_pid = std::process::id();
+    let target = katana::target::resolve_target(my_pid).expect("Failed to resolve own process");
+    assert_eq!(target.pid, my_pid);
+    assert!(!target.comm.is_empty());
+
+    let snapshot = katana::target::take_snapshot(my_pid).expect("Failed to take snapshot of own process");
+    assert_eq!(snapshot.pid, my_pid);
+    assert!(!snapshot.threads.is_empty());
+
+    let verified = katana::target::verify_identity(&target, &target);
+    assert!(verified, "Same identity must verify as valid");
+}

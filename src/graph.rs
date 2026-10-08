@@ -22,6 +22,8 @@ pub enum Node {
     Thread(ThreadId),
     FutexKey(FutexKey),
     CpuRunq(u16),
+    Device(u32),
+    BlockRequest(u64),
     Unattributed(UnattrReason),
 }
 
@@ -35,6 +37,8 @@ pub enum Relation {
     RunqDelayed,
     PiOwnerAtEntry,
     CorrelatesWith,
+    BlockedOnDevice,
+    BlockDeviceLatencyCorrelated,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,6 +69,7 @@ pub enum TerminalReason {
     Interrupted,
     OpenAtWindowEnd,
     EndedByExit,
+    BlockedOnDevice,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
