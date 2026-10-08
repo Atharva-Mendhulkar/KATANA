@@ -17,14 +17,15 @@ Katana's testing strategy is built around deterministic replayability, strict an
 
 ## 2. Test Suites Overview
 
-The repository currently provides 29 comprehensive test cases across four suites:
+The repository currently provides 33 comprehensive test cases across five suites:
 
 ```text
 tests/
 ├── anti_inflation_tests.rs     # 2 tests: monotonic rule ceilings, renderer linting
 ├── block_io_tests.rs           # 8 tests: BIO-1, BIO-2, sysfs resolution, wire decoders, replay
 ├── fault_injection_tests.rs    # 12 tests: Tests 1–8 (cycles, loss, negative controls, futex2, PID reuse)
-└── fw1_tests.rs                # 7 tests: Futex wake pairing (cross-CPU, migration, loss, key mismatch)
+├── fw1_tests.rs                # 7 tests: Futex wake pairing (cross-CPU, migration, loss, key mismatch)
+└── phase3_features_tests.rs    # 4 tests: static HTML export (anti-emoji, monochrome), watch mode trigger & capacity
 ```
 
 Run all tests:

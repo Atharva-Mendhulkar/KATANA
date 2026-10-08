@@ -5,10 +5,12 @@ pub mod events;
 pub mod evidence;
 pub mod futex;
 pub mod graph;
+pub mod html_export;
 pub mod output;
 pub mod renderer;
 pub mod scheduler;
 pub mod target;
+pub mod watcher;
 
 // Retain compatibility module for existing unit tests
 pub mod causal_rules;
@@ -28,6 +30,7 @@ use scheduler::{EventRef, ThreadId, WakerCtx};
 
 pub const MIN_BLOCK_NS: u64 = 1_000_000; // 1 ms threshold for blocked finding
 
+#[derive(Debug, Clone)]
 pub struct Engine {
     pub max_depth: usize,
 }

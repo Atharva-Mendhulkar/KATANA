@@ -76,12 +76,18 @@ katana explain 4217
 # Target specific thread with custom duration
 katana explain 4217 --tid 4220 --duration 2000ms
 
+# Export pure black-and-white, zero-emoji static HTML visualizer report
+katana explain 4217 --html report.html
+
 # Emit machine-readable JSON adhering to schema/report.v1.json
 katana explain 4217 --json
 
+# Continuous in-kernel watch mode (triggers when thread off-CPU stall >= 50ms)
+katana watch 4217 --threshold 50 --retention 5000 --html anomaly.html
+
 # Replay a recorded trace file (unprivileged user space)
-katana explain --replay fixtures/bio1_sync_io.json --json
-katana explain --replay fixtures/bio2_writeback.json
+katana explain --replay fixtures/bio1_sync_io.json --html /tmp/report.html
+katana watch --replay fixtures/bio1_sync_io.json --threshold 10 --json
 ```
 
 ---

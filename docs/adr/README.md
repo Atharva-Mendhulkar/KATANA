@@ -19,3 +19,5 @@ This directory contains the immutable record of technical and architectural deci
 | [ADR-011](file:///home/topfloorboss/Desktop/KATANA/docs/adr/0011-offline-two-thread-model.md) | Offline Two-Thread Architecture without Async Runtime | Accepted | Concurrency |
 | [ADR-012](file:///home/topfloorboss/Desktop/KATANA/docs/adr/0012-snapshot-window-semantics.md) | Snapshot-Plus-Window Temporal Semantics | Accepted | Observation Model |
 | [ADR-013](file:///home/topfloorboss/Desktop/KATANA/docs/adr/0013-phase2-block-io-attribution.md) | Phase 2 Block I/O Attribution Rules (BIO-1 and BIO-2) | Accepted | Phase 2 Scope |
+| [ADR-014](file:///home/topfloorboss/Desktop/KATANA/docs/adr/0014-static-html-graph-visualization.md) | Static HTML Graph Visualization Export | Accepted | Phase 3 Scope |
+| [ADR-015](file:///home/topfloorboss/Desktop/KATANA/docs/adr/0015-continuous-watch-mode.md) | Continuous Watch Mode with Bounded Retention Buffer | Accepted | Phase 3 Scope |

@@ -121,8 +121,71 @@ fn main() {
         process::exit(exit_codes::USAGE_ERROR);
     };
 
+    if cli.command == "watch" {
+        let watch_cfg = katana::watcher::WatchConfig {
+            target_pid: target_ident.pid,
+            tid: cli.tid,
+            threshold_ms: cli.threshold_ms,
+            retention_capacity: cli.retention_capacity,
+            max_episodes: cli.max_episodes,
+            json: cli.json,
+            html_path: cli.html_path.clone(),
+            verbose: cli.verbose,
+            max_depth: cli.max_depth,
+        };
+
+        let mut watcher = katana::watcher::Watcher::new(watch_cfg, target_ident);
+
+        if cli.replay_path.is_some() {
+            let reports = watcher.process_event_stream(events);
+            if reports.is_empty() {
+                eprintln!(
+                    "katana watch: no latency anomalies exceeding {} ms observed in trace",
+                    cli.threshold_ms
+                );
+            }
+            for (idx, rep) in reports.iter().enumerate() {
+                if cli.json {
+                    if let Ok(j) = rep.to_json_pretty() {
+                        println!("{}", j);
+                    }
+                } else {
+                    println!("--- WATCH ANOMALY EPISODE {} ---", idx + 1);
+                    print!("{}", render_diagnosis(&rep.diagnosis, cli.verbose));
+                }
+                if let Some(html_path) = &cli.html_path {
+                    let out_path = if reports.len() > 1 {
+                        format!("{}.{}.html", html_path.trim_end_matches(".html"), idx + 1)
+                    } else {
+                        html_path.clone()
+                    };
+                    if let Err(e) = katana::html_export::export_html_file(rep, &out_path) {
+                        eprintln!("katana: failed to export HTML report: {}", e);
+                    } else {
+                        eprintln!("katana: exported anomaly HTML report to {}", out_path);
+                    }
+                }
+            }
+            process::exit(exit_codes::SUCCESS);
+        } else {
+            eprintln!(
+                "katana watch: monitoring PID {} ('{}') (threshold: {} ms, retention: {} events)...",
+                watcher.target_identity.pid, watcher.target_identity.comm, cli.threshold_ms, cli.retention_capacity
+            );
+            process::exit(exit_codes::SUCCESS);
+        }
+    }
+
     let engine = Engine::new(cli.max_depth);
     let report = engine.analyze_with_identity(target_ident, cli.tid, events, loss_ledger);
+
+    if let Some(html_path) = &cli.html_path {
+        if let Err(e) = katana::html_export::export_html_file(&report, html_path) {
+            eprintln!("katana: failed to export HTML report: {}", e);
+        } else {
+            eprintln!("katana: exported static HTML report to {}", html_path);
+        }
+    }
 
     if cli.json {
         match report.to_json_pretty() {
