@@ -79,23 +79,38 @@ Phase 2 transitions Katana from Phase 1 MVP (pure scheduler + futex analysis) to
 ### 3.8 CI Automation (`.github/workflows/ci.yml`)
 - Automated GitHub Actions workflow executing `scripts/check-scope.sh` and `cargo test --verbose` on push and PR.
 
+### 3.9 In-Kernel eBPF Binary Wire Decoding (`src/events.rs`)
+- Implemented `Event::decode_raw(buf: &[u8])` parsing raw packed frames matching `bpf/katana.h`:
+  - `kt_hdr` (28 bytes) with `ts_ns`, `seq`, `tid`, `tgid`, `cpu`, `type`, `flags`.
+  - Payloads: `kt_switch`, `kt_wake`, `kt_futex_enter` (with PI owner word extraction), `kt_futex_exit`, `kt_block_issue` (with rwbs ascii flags), `kt_block_complete`, `kt_unsupported_syscall`.
+  - Validates packet bounds and prevents buffer overreads on truncated records.
+
+### 3.10 Trace Replay Golden Fixtures (`fixtures/`)
+- Added committed test fixtures:
+  - `fixtures/bio1_sync_io.json`: Synchronous direct block I/O (`O_DIRECT`/`fsync`) causal trace.
+  - `fixtures/bio2_writeback.json`: Asynchronous writeback/kworker correlated trace.
+- Verified end-to-end `katana explain --replay <fixture> --json` adherence to `schema/report.v1.json` and human-readable formatting with mandatory correlation suffix.
+
 ---
 
-## 4. Test Suite Matrix (23/23 Tests Passing)
+## 4. Test Suite Matrix (26/26 Tests Passing)
 
 ```text
 running 2 tests (tests/anti_inflation_tests.rs)
-test test_renderer_anti_inflation_lint ... ok
 test test_rule_max_class_invariants ... ok
+test test_renderer_anti_inflation_lint ... ok
 test result: ok. 2 passed; 0 failed
 
-running 5 tests (tests/block_io_tests.rs)
+running 8 tests (tests/block_io_tests.rs)
 test test_bio_anti_inflation_lint ... ok
-test test_bio2_writeback_kworker_correlated_only ... ok
 test test_bio1_direct_sync_attribution ... ok
-test test_resolve_dev_name ... ok
+test test_bio2_writeback_kworker_correlated_only ... ok
 test test_bio_request_id_mismatch ... ok
-test result: ok. 5 passed; 0 failed
+test test_decode_raw_block_events ... ok
+test test_decode_raw_sched_and_futex ... ok
+test test_resolve_dev_name ... ok
+test test_bio_replay_fixtures ... ok
+test result: ok. 8 passed; 0 failed
 
 running 9 tests (tests/fault_injection_tests.rs)
 test test_chain_cycle_detection_3d ... ok

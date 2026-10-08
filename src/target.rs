@@ -105,3 +105,18 @@ pub fn verify_identity(initial: &TargetIdentity, current: &TargetIdentity) -> bo
         && initial.start_time_ticks == current.start_time_ticks
         && initial.boot_id == current.boot_id
 }
+
+/// Checks if current process has root/privileged effective UID (PRD §16.2 exit 10).
+pub fn has_root_privileges() -> bool {
+    if let Ok(status) = fs::read_to_string("/proc/self/status") {
+        for line in status.lines() {
+            if line.starts_with("Uid:") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if let Some(euid_str) = parts.get(2) {
+                    return *euid_str == "0";
+                }
+            }
+        }
+    }
+    false
+}

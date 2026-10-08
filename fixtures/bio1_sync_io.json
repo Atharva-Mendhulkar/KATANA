@@ -1,0 +1,60 @@
+[
+  {
+    "ts_ns": 1000000000,
+    "ref": { "cpu": 0, "seq": 1 },
+    "thread": { "tid": 4217, "tgid": 4217 },
+    "kind": {
+      "BlockRqIssue": {
+        "dev_id": 524289,
+        "req_id": 3735928559,
+        "sector": 4096,
+        "nr_sector": 8,
+        "rwbs": "WS",
+        "submitter": { "tid": 4217, "tgid": 4217 },
+        "issue_ts": 1000000000
+      }
+    }
+  },
+  {
+    "ts_ns": 1000050000,
+    "ref": { "cpu": 0, "seq": 2 },
+    "thread": { "tid": 4217, "tgid": 4217 },
+    "kind": {
+      "Switch": {
+        "prev": { "tid": 4217, "tgid": 4217 },
+        "next": { "tid": 100, "tgid": 100 },
+        "prev_state": "IoWait",
+        "preempted": false,
+        "in_iowait": true
+      }
+    }
+  },
+  {
+    "ts_ns": 1020000000,
+    "ref": { "cpu": 0, "seq": 3 },
+    "thread": { "tid": 0, "tgid": 0 },
+    "kind": {
+      "BlockRqComplete": {
+        "dev_id": 524289,
+        "req_id": 3735928559,
+        "nr_bytes": 4096,
+        "error": 0,
+        "complete_ts": 1020000000
+      }
+    }
+  },
+  {
+    "ts_ns": 1020050000,
+    "ref": { "cpu": 0, "seq": 4 },
+    "thread": { "tid": 4217, "tgid": 4217 },
+    "kind": {
+      "Switch": {
+        "prev": { "tid": 100, "tgid": 100 },
+        "next": { "tid": 4217, "tgid": 4217 },
+        "prev_state": "Running",
+        "preempted": false,
+        "in_iowait": false
+      }
+    }
+  }
+]

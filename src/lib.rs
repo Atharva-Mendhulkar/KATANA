@@ -45,14 +45,15 @@ impl Engine {
         }
     }
 
-    /// Complete deterministic analysis pipeline (PRD §7, §11–§14).
-    pub fn analyze(
+    /// Complete deterministic analysis pipeline with explicit TargetIdentity.
+    pub fn analyze_with_identity(
         &self,
-        target_pid: u32,
+        target_identity: TargetIdentity,
         subject_tid: Option<u32>,
         mut events: Vec<Event>,
         mut loss_ledger: LossLedger,
     ) -> Report {
+        let target_pid = target_identity.pid;
         let initial_event_count = events.len() as u64;
 
         // 1. Normalization & event loss gap detection
@@ -651,13 +652,7 @@ impl Engine {
 
 
         Report::new(
-            TargetIdentity {
-                tgid: target_pid,
-                pid: target_pid,
-                comm: "target".to_string(),
-                start_time_ticks: 123456,
-                boot_id: "00000000-0000-0000-0000-000000000000".to_string(),
-            },
+            target_identity,
             WindowInfo {
                 duration_ns,
                 t_start_ns,
@@ -673,5 +668,23 @@ impl Engine {
                 read_user_fail: loss_ledger.read_user_fail,
             },
         )
+    }
+
+    /// Complete deterministic analysis pipeline (resolving TargetIdentity from target_pid).
+    pub fn analyze(
+        &self,
+        target_pid: u32,
+        subject_tid: Option<u32>,
+        events: Vec<Event>,
+        loss_ledger: LossLedger,
+    ) -> Report {
+        let identity = crate::target::resolve_target(target_pid).unwrap_or(TargetIdentity {
+            tgid: target_pid,
+            pid: target_pid,
+            comm: "target".to_string(),
+            start_time_ticks: 123456,
+            boot_id: "00000000-0000-0000-0000-000000000000".to_string(),
+        });
+        self.analyze_with_identity(identity, subject_tid, events, loss_ledger)
     }
 }
