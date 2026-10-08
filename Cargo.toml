@@ -14,3 +14,7 @@ path = "src/lib.rs"
 [[bin]]
 name = "katana"
 path = "src/main.rs"
+
+[[bin]]
+name = "katana-bench"
+path = "benchmarks/bench_main.rs"

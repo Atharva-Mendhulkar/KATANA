@@ -100,6 +100,15 @@ Phase 2 transitions Katana from Phase 1 MVP (pure scheduler + futex analysis) to
   - Negative control 4b timer sleep (`nanosleep`) attributes zero false wakers.
   - Unattributed `in_iowait` preserves the strict PRD §32.1 invariant: `in_iowait flag alone never names a device`.
 
+### 3.12 Microbenchmarking & Evaluation (PRD §24, §32.1)
+- Built release microbenchmark harness in `benchmarks/bench_main.rs` (`cargo run --release --bin katana-bench`).
+- Characterized host hardware: Intel i7-8550U, LITEON CV8-8E128 SATA SSD (`/dev/sdb`), Seagate ST2000LM007 SATA HDD (`/dev/sda`). Clarified that host lacks PCIe NVMe controllers.
+- Executed $N = 20$ trials with median, IQR, min/max, and 95% CI:
+  - **Physical SSD `fsync` block latency:** Median 3,327.00 µs (3.33 ms), IQR 527.00 µs.
+  - **Raw eBPF wire decoding speed:** Median **24.38 Mops/sec** (~41 ns/event).
+  - **Cell B4 Engine analysis throughput:** Median **253,195.64 events/sec** (~3.95 µs/event) on 50,000-event block I/O stream.
+- Committed raw trial results to `benchmarks/results_phase2.csv` and documented evaluation in `benchmarks/BENCHMARKS.md`.
+
 ---
 
 ## 4. Test Suite Matrix (29/29 Tests Passing)
