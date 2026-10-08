@@ -192,6 +192,29 @@ pub fn render_diagnosis(diag: &Diagnosis, verbose: bool) -> String {
 
     if verbose {
         out.push_str(&format!("\nCompleteness: {:?}\n", diag.completeness));
+        if let Some(pri) = &diag.primary {
+            if !pri.evidence_ids.is_empty() {
+                out.push_str(&format!("Primary Evidence IDs: {}\n", pri.evidence_ids.join(", ")));
+            }
+        }
+        if !diag.context.is_empty() {
+            out.push_str("Evidence Provenance Details:\n");
+            for ctx in &diag.context {
+                let prov_str = if ctx.provenance.is_empty() {
+                    "none".to_string()
+                } else {
+                    ctx.provenance
+                        .iter()
+                        .map(|p| format!("cpu:{} seq:{}", p.cpu, p.seq))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                };
+                out.push_str(&format!(
+                    "  - [{} / {:?}]: {} (provenance: [{}])\n",
+                    ctx.id, ctx.rule, ctx.description, prov_str
+                ));
+            }
+        }
     }
 
     out
