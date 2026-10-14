@@ -634,6 +634,10 @@ fn test_replay_determinism_and_monotonicity_8() {
 
 #[test]
 fn test_target_identity_and_snapshot_live() {
+    if !std::path::Path::new("/proc").exists() {
+        println!("Skipping live procfs test on non-Linux platform");
+        return;
+    }
     let my_pid = std::process::id();
     let target = katana::target::resolve_target(my_pid).expect("Failed to resolve own process");
     assert_eq!(target.pid, my_pid);

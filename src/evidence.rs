@@ -117,6 +117,7 @@ pub struct Evidence {
 }
 
 impl Evidence {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: String,
         requested_class: EvidenceClass,

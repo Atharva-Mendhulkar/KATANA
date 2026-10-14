@@ -129,7 +129,7 @@ impl Diagnosis {
         }
 
         // Sort candidates descending by rank_key
-        candidates.sort_by(|a, b| b.rank_key().cmp(&a.rank_key()));
+        candidates.sort_by_key(|b| std::cmp::Reverse(b.rank_key()));
 
         let primary = candidates.remove(0);
         let status = match primary.kind {

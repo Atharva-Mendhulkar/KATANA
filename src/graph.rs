@@ -135,7 +135,7 @@ impl CausalGraph {
                     if wakee.tid == cur_wait.thread.tid {
                         // Wake occurred during or closing cur_wait
                         return e.t_end >= cur_wait.enter_ts
-                            && cur_wait.exit_ts.map_or(true, |ext| e.t_end <= ext + 50_000);
+                            && cur_wait.exit_ts.is_none_or(|ext| e.t_end <= ext + 50_000);
                     }
                 }
                 false
@@ -208,7 +208,7 @@ impl CausalGraph {
             // Find what waker was doing prior to waking: did waker have a prior wait interval?
             let prior_wait = all_waits
                 .iter()
-                .filter(|w| w.thread.tid == waker.tid && w.exit_ts.map_or(false, |ext| ext <= edge.t_end))
+                .filter(|w| w.thread.tid == waker.tid && w.exit_ts.is_some_and(|ext| ext <= edge.t_end))
                 .max_by_key(|w| w.exit_ts.unwrap_or(0));
 
             if let Some(prior) = prior_wait {

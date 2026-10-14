@@ -468,8 +468,7 @@ impl Engine {
         let mut candidates: Vec<Finding> = Vec::new();
 
         if let Some(longest_wait) = subject_waits.iter().max_by_key(|w| {
-            let dur = w.exit_ts.unwrap_or(t_end_ns).saturating_sub(w.enter_ts);
-            dur
+            w.exit_ts.unwrap_or(t_end_ns).saturating_sub(w.enter_ts)
         }) {
             let dur_ns = longest_wait.exit_ts.unwrap_or(t_end_ns).saturating_sub(longest_wait.enter_ts);
 
@@ -693,7 +692,7 @@ impl Engine {
         let completeness = if !loss_ledger.is_empty() {
             Completeness::Lossy
         } else if !limitations.is_empty()
-            || candidates.iter().any(|c| c.chain.as_ref().map_or(false, |ch| ch.hops.len() >= 8))
+            || candidates.iter().any(|c| c.chain.as_ref().is_some_and(|ch| ch.hops.len() >= 8))
         {
             Completeness::Partial
         } else {

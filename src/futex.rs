@@ -213,7 +213,7 @@ impl WaitInterval {
     }
 
     pub fn is_open_at(&self, ts: u64) -> bool {
-        self.enter_ts <= ts && self.exit_ts.map_or(true, |exit_ts| ts <= exit_ts)
+        self.enter_ts <= ts && self.exit_ts.is_none_or(|exit_ts| ts <= exit_ts)
     }
 
     pub fn close(&mut self, exit_ts: u64, exit_ref: EventRef, ret: i64) {
@@ -246,6 +246,7 @@ pub struct WakeInvocation {
 }
 
 impl WakeInvocation {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         thread: ThreadId,
         uaddr: u64,

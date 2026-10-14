@@ -11,13 +11,13 @@ use katana::Engine;
 const N_TRIALS: usize = 20;
 
 // Device IDs for multi-drive PCIe NVMe simulation (major 259)
-const DEV_NVME0N1: u32 = (259 << 20) | 0; // Primary fast NVMe (100-250 µs)
+const DEV_NVME0N1: u32 = 259 << 20; // Primary fast NVMe (100-250 µs)
 const DEV_NVME1N1: u32 = (259 << 20) | 1; // Secondary background NVMe (heavy writeback)
 
 fn median(mut vals: Vec<f64>) -> f64 {
     vals.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let mid = vals.len() / 2;
-    if vals.len() % 2 == 0 {
+    if vals.len().is_multiple_of(2) {
         (vals[mid - 1] + vals[mid]) / 2.0
     } else {
         vals[mid]

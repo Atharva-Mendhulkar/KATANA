@@ -303,6 +303,7 @@ fn render_causal_graph_svg(out: &mut String, report: &Report) {
     out.push_str("    </section>\n\n");
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_svg_node(
     out: &mut String,
     x: usize,
