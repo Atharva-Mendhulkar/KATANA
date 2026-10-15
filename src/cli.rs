@@ -8,10 +8,39 @@ pub mod exit_codes {
     pub const AMBIGUOUS_OR_INVALID: i32 = 4;
     pub const INSUFFICIENT_PRIVS: i32 = 10;
     pub const TARGET_NOT_FOUND: i32 = 11;
+    pub const KERNEL_UNSUPPORTED: i32 = 12;
+    pub const BPF_ATTACH_FAILED: i32 = 13;
     pub const TARGET_EXITED_EARLY: i32 = 14;
 }
 
-#[derive(Debug, Clone)]
+pub const HELP_TEXT: &str = "\
+Katana - eBPF-based causal latency diagnosis tool
+
+Usage:
+  katana explain <PID> [options]
+  katana watch <PID> [options]
+
+Subcommands:
+  explain               Single-shot bounded observation window and root-cause analysis
+  watch                 Continuous ring-buffer watch mode with anomaly triggering
+
+Options:
+  --duration <ms|s>     Observation window for explain (500ms..30s, default: 3000ms)
+  --watch               Continuous watch mode: buffer events and trigger on threshold
+  --threshold <ms|s>    Latency anomaly threshold for watch (default: 50ms)
+  --retention <N>       Retention buffer size in events (default: 5000)
+  --capacity <N>        Alias for --retention
+  --max-episodes <N>    Exit watch mode after N detected episodes
+  --html [path]         Export self-contained static HTML report (default: katana_report.html)
+  --json                Emit report as JSON to stdout
+  --verbose             Include detailed event provenance
+  --tid <TID>           Filter by thread ID
+  --max-depth <N>       Maximum causality chain depth (1..16, default: 8)
+  --replay <path>       Replay trace file
+  -h, --help            Print help information
+  -v, --version         Print version information";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CliArgs {
     pub command: String,
     pub pid: Option<u32>,
@@ -46,7 +75,7 @@ impl Default for CliArgs {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseResult {
     Ok(CliArgs),
     Help(String),
@@ -54,55 +83,65 @@ pub enum ParseResult {
     Err(String),
 }
 
+/// Parses duration strings like "500ms", "3s", "3000" into milliseconds.
+fn parse_duration_ms(s: &str) -> Result<u64, String> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Err("Empty duration".to_string());
+    }
+    if let Some(stripped) = s.strip_suffix("ms") {
+        stripped.trim().parse::<u64>().map_err(|_| "Invalid duration".to_string())
+    } else if let Some(stripped) = s.strip_suffix('s') {
+        let secs = stripped.trim().parse::<u64>().map_err(|_| "Invalid duration".to_string())?;
+        secs.checked_mul(1000).ok_or_else(|| "Duration overflow".to_string())
+    } else {
+        s.parse::<u64>().map_err(|_| "Invalid duration".to_string())
+    }
+}
+
 pub fn parse_args(args: &[String]) -> ParseResult {
     if args.len() < 2 {
         return ParseResult::Err("Usage: katana explain <PID> [options] | katana watch <PID> [options]".to_string());
     }
 
+    // Check for global help or version flags anywhere in args
+    for arg in args.iter().skip(1) {
+        if arg == "--help" || arg == "-h" {
+            return ParseResult::Help(HELP_TEXT.to_string());
+        }
+        if arg == "--version" || arg == "-v" || arg == "-V" {
+            return ParseResult::Version(format!("katana {}", env!("CARGO_PKG_VERSION")));
+        }
+    }
+
     let mut cli = CliArgs::default();
     let mut i = 1;
 
-    if args[i] == "--help" || args[i] == "-h" {
-        return ParseResult::Help("Katana - eBPF-based causal latency diagnosis tool\n\nUsage:\n  katana explain <PID> [options]\n  katana watch <PID> [options]\n\nSubcommands:\n  explain           Single-shot bounded observation window and root-cause analysis\n  watch             Continuous ring-buffer watch mode with anomaly triggering\n\nOptions:\n  --duration <ms>       Observation window for explain (default: 3000ms)\n  --threshold <ms>      Latency anomaly threshold for watch (default: 50ms)\n  --retention <N>       Retention buffer size in events (default: 5000)\n  --max-episodes <N>    Exit watch mode after N detected episodes\n  --html [path]         Export self-contained static HTML report (default: katana_report.html)\n  --json                Emit report as JSON to stdout\n  --verbose             Include detailed event provenance\n  --tid <TID>           Filter by thread ID\n  --max-depth <N>       Maximum causality chain depth (1..16, default: 8)\n  --replay <path>       Replay trace file".to_string());
-    }
-
-    if args[i] == "--version" || args[i] == "-v" {
-        return ParseResult::Version("katana 0.1.0".to_string());
-    }
-
+    // Subcommand dispatch or implicit default
     if args[i] == "explain" || args[i] == "watch" {
         cli.command = args[i].clone();
         i += 1;
-    } else if !args[i].starts_with("--") {
-        // Default to explain if PID is passed directly
+    } else if args[i].starts_with("--") {
+        // Flag passed without explicit subcommand; default to explain
         cli.command = "explain".to_string();
     } else {
-        return ParseResult::Err(format!("Unknown subcommand '{}'. Expected 'explain' or 'watch'.", args[i]));
+        // PID or positional argument passed directly; default to explain
+        cli.command = "explain".to_string();
     }
 
     while i < args.len() {
         match args[i].as_str() {
+            "--watch" => {
+                cli.command = "watch".to_string();
+            }
             "--duration" => {
                 i += 1;
                 if i >= args.len() {
                     return ParseResult::Err("Missing value for --duration".to_string());
                 }
-                let dur_str = &args[i];
-                let ms: u64 = if dur_str.ends_with("ms") {
-                    match dur_str[..dur_str.len() - 2].parse() {
-                        Ok(v) => v,
-                        Err(_) => return ParseResult::Err("Invalid duration".to_string()),
-                    }
-                } else if dur_str.ends_with('s') {
-                    match dur_str[..dur_str.len() - 1].parse::<u64>() {
-                        Ok(v) => v * 1000,
-                        Err(_) => return ParseResult::Err("Invalid duration".to_string()),
-                    }
-                } else {
-                    match dur_str.parse() {
-                        Ok(v) => v,
-                        Err(_) => return ParseResult::Err("Invalid duration".to_string()),
-                    }
+                let ms = match parse_duration_ms(&args[i]) {
+                    Ok(v) => v,
+                    Err(_) => return ParseResult::Err("Invalid duration".to_string()),
                 };
                 if !(500..=30000).contains(&ms) {
                     return ParseResult::Err("Duration must be between 500ms and 30000ms".to_string());
@@ -141,8 +180,14 @@ pub fn parse_args(args: &[String]) -> ParseResult {
             }
             "--html" => {
                 if i + 1 < args.len() && !args[i + 1].starts_with("--") {
-                    i += 1;
-                    cli.html_path = Some(args[i].clone());
+                    let next = &args[i + 1];
+                    // If next arg is all digits and PID not yet assigned, treat next arg as PID
+                    if cli.pid.is_none() && next.chars().all(|c| c.is_ascii_digit()) && !next.ends_with(".html") {
+                        cli.html_path = Some("katana_report.html".to_string());
+                    } else {
+                        i += 1;
+                        cli.html_path = Some(next.clone());
+                    }
                 } else {
                     cli.html_path = Some("katana_report.html".to_string());
                 }
@@ -152,19 +197,23 @@ pub fn parse_args(args: &[String]) -> ParseResult {
                 if i >= args.len() {
                     return ParseResult::Err("Missing value for --threshold".to_string());
                 }
-                match args[i].parse::<u64>() {
-                    Ok(th) => cli.threshold_ms = th,
+                let th = match parse_duration_ms(&args[i]) {
+                    Ok(v) => v,
                     Err(_) => return ParseResult::Err("Invalid threshold value".to_string()),
+                };
+                if th == 0 {
+                    return ParseResult::Err("Threshold must be greater than 0ms".to_string());
                 }
+                cli.threshold_ms = th;
             }
-            "--retention" | "--retention-events" => {
+            "--retention" | "--retention-events" | "--capacity" => {
                 i += 1;
                 if i >= args.len() {
                     return ParseResult::Err("Missing value for --retention".to_string());
                 }
                 match args[i].parse::<usize>() {
-                    Ok(cap) => cli.retention_capacity = cap,
-                    Err(_) => return ParseResult::Err("Invalid retention capacity".to_string()),
+                    Ok(cap) if cap > 0 => cli.retention_capacity = cap,
+                    _ => return ParseResult::Err("Invalid retention capacity".to_string()),
                 }
             }
             "--max-episodes" => {
@@ -173,8 +222,8 @@ pub fn parse_args(args: &[String]) -> ParseResult {
                     return ParseResult::Err("Missing value for --max-episodes".to_string());
                 }
                 match args[i].parse::<usize>() {
-                    Ok(ep) => cli.max_episodes = Some(ep),
-                    Err(_) => return ParseResult::Err("Invalid max-episodes value".to_string()),
+                    Ok(ep) if ep > 0 => cli.max_episodes = Some(ep),
+                    _ => return ParseResult::Err("Invalid max-episodes value".to_string()),
                 }
             }
             "--replay" => {
@@ -198,7 +247,10 @@ pub fn parse_args(args: &[String]) -> ParseResult {
     }
 
     if cli.pid.is_none() && cli.replay_path.is_none() {
-        return ParseResult::Err("PID is required for 'katana explain <PID>'".to_string());
+        return ParseResult::Err(format!(
+            "PID is required for 'katana {} <PID>' (or use --replay <path>)",
+            cli.command
+        ));
     }
 
     ParseResult::Ok(cli)

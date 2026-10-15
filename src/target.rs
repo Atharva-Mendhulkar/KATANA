@@ -18,6 +18,20 @@ pub fn resolve_target(pid: u32) -> Result<TargetIdentity, String> {
     let close_paren = stat_content.rfind(')').ok_or("Malformed /proc/<pid>/stat")?;
     let comm = stat_content[open_paren + 1..close_paren].to_string();
 
+    // Verify that pid is a thread-group leader (TGID), not an individual thread (PRD §16.1)
+    if let Ok(status) = fs::read_to_string(format!("/proc/{}/status", pid)) {
+        for line in status.lines() {
+            if line.starts_with("Tgid:") {
+                if let Some(tgid) = line.split_whitespace().nth(1).and_then(|s| s.parse::<u32>().ok()) {
+                    if tgid != pid {
+                        return Err(format!("PID {} is a thread of {}; use --tid", pid, tgid));
+                    }
+                }
+                break;
+            }
+        }
+    }
+
     let rest = &stat_content[close_paren + 1..].trim();
     let fields: Vec<&str> = rest.split_whitespace().collect();
     // In /proc/<pid>/stat: field 22 (1-based) is starttime, which is index 19 after (comm) and state (field 3)

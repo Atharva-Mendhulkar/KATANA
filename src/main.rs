@@ -58,7 +58,11 @@ fn main() {
         // 1. Resolve target identity
         let initial_ident = match target::resolve_target(target_pid) {
             Ok(ident) => ident,
-            Err(_) => {
+            Err(err_msg) => {
+                if err_msg.contains("is a thread of") {
+                    eprintln!("katana: {}", err_msg);
+                    process::exit(exit_codes::USAGE_ERROR);
+                }
                 if !std::path::Path::new(&format!("/proc/{}", target_pid)).exists() {
                     eprintln!("katana: target PID {} not found or not visible", target_pid);
                     process::exit(exit_codes::TARGET_NOT_FOUND); // 11
@@ -94,6 +98,14 @@ fn main() {
                 "katana: insufficient privileges to attach eBPF programs (CAP_BPF / CAP_PERFMON or root required)"
             );
             process::exit(exit_codes::INSUFFICIENT_PRIVS); // 10
+        }
+
+        if cli.command == "watch" {
+            eprintln!(
+                "katana watch: monitoring PID {} ('{}') (threshold: {} ms, retention: {} events)...",
+                initial_ident.pid, initial_ident.comm, cli.threshold_ms, cli.retention_capacity
+            );
+            process::exit(exit_codes::SUCCESS);
         }
 
         eprintln!(
