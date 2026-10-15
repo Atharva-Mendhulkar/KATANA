@@ -260,3 +260,42 @@ fn test_errors() {
     assert!(matches!(parse_args(&to_args("katana explain 4217 --tid")), ParseResult::Err(e) if e.contains("Missing value")));
     assert!(matches!(parse_args(&to_args("katana explain 4217 --max-depth")), ParseResult::Err(e) if e.contains("Missing value")));
 }
+
+#[test]
+fn test_demo_command() {
+    // default demo
+    let res = parse_args(&to_args("katana demo"));
+    assert!(matches!(res, ParseResult::Ok(cli) if cli.command == "demo" && cli.demo_scenario.is_none()));
+
+    // scenario name
+    let res = parse_args(&to_args("katana demo futex"));
+    assert!(matches!(res, ParseResult::Ok(cli) if cli.command == "demo" && cli.demo_scenario == Some("futex".to_string())));
+
+    // demo with html and open
+    let res = parse_args(&to_args("katana demo io --html --open"));
+    assert!(matches!(res, ParseResult::Ok(cli) if cli.command == "demo" && cli.demo_scenario == Some("io".to_string()) && cli.open_browser && cli.html_path == Some("katana_report.html".to_string())));
+}
+
+#[test]
+fn test_doctor_and_fixtures_commands() {
+    let res = parse_args(&to_args("katana doctor"));
+    assert!(matches!(res, ParseResult::Ok(cli) if cli.command == "doctor"));
+
+    let res = parse_args(&to_args("katana fixtures"));
+    assert!(matches!(res, ParseResult::Ok(cli) if cli.command == "fixtures"));
+
+    let res = parse_args(&to_args("katana list"));
+    assert!(matches!(res, ParseResult::Ok(cli) if cli.command == "fixtures"));
+}
+
+#[test]
+fn test_typo_suggestions() {
+    let res = parse_args(&to_args("katana explian"));
+    assert!(matches!(res, ParseResult::Err(e) if e.contains("Did you mean 'explain'?")));
+
+    let res = parse_args(&to_args("katana demmo"));
+    assert!(matches!(res, ParseResult::Err(e) if e.contains("Did you mean 'demo'?")));
+
+    let res = parse_args(&to_args("katana docter"));
+    assert!(matches!(res, ParseResult::Err(e) if e.contains("Did you mean 'doctor'?")));
+}

@@ -1,5 +1,6 @@
 pub mod block_io;
 pub mod cli;
+pub mod demo;
 pub mod diagnosis;
 pub mod events;
 pub mod evidence;

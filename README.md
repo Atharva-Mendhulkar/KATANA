@@ -278,44 +278,65 @@ cargo clippy
 
 ## CLI Usage
 
-```bash
+```text
 Katana - eBPF-based causal latency diagnosis tool
 
 Usage:
   katana explain <PID> [options]
+  katana watch <PID> [options]
+  katana demo [scenario] [options]
+  katana doctor
+  katana fixtures
+
+Commands:
+  explain <PID>       Single-shot bounded observation window and root-cause analysis
+  watch <PID>         Continuous ring-buffer watch mode with anomaly triggering
+  demo [scenario]     Run interactive built-in demonstration traces (futex, io, writeback, watch, all)
+  doctor              Inspect system capabilities (kernel, eBPF, BTF, permissions)
+  fixtures            List available demonstration traces and causal rules
 
 Options:
-  --duration <ms>     Observation window (default: 3000ms)
+  --duration <ms|s>   Observation window (500ms..30s, default: 3000ms)
   --tid <TID>         Filter by specific thread ID
-  --json              Emit report as JSON to stdout
-  --html <path>       Generate static black-and-white SVG HTML visual report
   --watch             Continuous watch mode: buffer events and trigger on threshold
-  --threshold <ms>    Blocking duration threshold to trigger explanation in watch mode (default: 500ms)
-  --capacity <N>      Maximum event ring capacity in watch mode (default: 10000)
+  --threshold <ms|s>  Blocking duration threshold in watch mode (default: 50ms)
+  --capacity <N>      Maximum event ring capacity in watch mode (default: 5000, alias: --retention)
+  --max-episodes <N>  Exit watch mode after N detected anomaly episodes
+  --html [path]       Generate static black-and-white SVG HTML visual report
+  --open              Automatically open exported HTML report in default web browser
+  --json              Emit report as JSON to stdout
   --verbose           Include detailed event provenance refs (cpu, seq)
   --max-depth <N>     Maximum causality chain depth (1..16, default: 8)
   --replay <path>     Replay recorded trace JSON event file
+  -h, --help          Print help information
+  -v, --version       Print version information
 ```
 
 ### Examples
 ```bash
-# Analyze a target process by PID (default 3000ms window)
-katana explain 4217
+# 1. Run interactive built-in demo scenarios (zero setup / works on macOS & Linux)
+katana demo                                # Flagship multi-waiter futex contention
+katana demo io --html report.html --open   # Synchronous block I/O + open in browser
+katana demo all                            # Complete 4-scenario architecture tour
 
-# Target specific thread with custom duration and depth cap
-katana explain 4217 --tid 4220 --duration 2000ms --max-depth 8
+# 2. Check system environment & eBPF capabilities
+katana doctor
 
-# Emit machine-readable JSON validated against schema/report.v1.json
-katana explain 4217 --json
+# 3. List available demo datasets & causal rules
+katana fixtures
 
-# Export an interactive, standalone SVG HTML visual report
-katana explain 4217 --html report.html
+# 4. Analyze a live target process by PID on Linux (default 3000ms window)
+sudo katana explain 4217
 
-# Run continuous watch mode triggering on latency stalls > 250ms
-katana explain 4217 --watch --threshold 250ms
+# 5. Target specific thread with custom duration and depth cap
+sudo katana explain 4217 --tid 4220 --duration 2s --max-depth 8
 
-# Replay a recorded trace file deterministically
-katana explain 4217 --replay fixtures/bio1_sync_io.json
+# 6. Continuous watch mode triggering on latency stalls > 250ms
+sudo katana watch 4217 --threshold 250ms --capacity 10000
+
+# 7. Replay a recorded trace file deterministically without root privileges
+katana explain --replay fixtures/contention.json
+katana explain --replay fixtures/bio1_sync_io.json --html report.html --open
 ```
 
 ---

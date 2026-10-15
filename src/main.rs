@@ -28,6 +28,39 @@ fn main() {
         }
     };
 
+    if cli.command == "doctor" {
+        katana::demo::run_doctor();
+        process::exit(exit_codes::SUCCESS);
+    }
+
+    if cli.command == "fixtures" {
+        katana::demo::list_fixtures();
+        process::exit(exit_codes::SUCCESS);
+    }
+
+    if cli.command == "demo" {
+        let scenario_str = cli.demo_scenario.as_deref().unwrap_or("futex");
+        let scenario = match katana::demo::Scenario::parse(scenario_str) {
+            Some(s) => s,
+            None => {
+                eprintln!(
+                    "katana demo: unknown scenario '{}'. Available: futex, io, writeback, watch, all",
+                    scenario_str
+                );
+                process::exit(exit_codes::USAGE_ERROR);
+            }
+        };
+
+        katana::demo::run_scenario(
+            scenario,
+            cli.html_path.as_deref(),
+            cli.open_browser,
+            cli.json,
+            cli.verbose,
+        );
+        process::exit(exit_codes::SUCCESS);
+    }
+
     let (target_ident, events, loss_ledger) = if let Some(replay_path) = &cli.replay_path {
         let content = match fs::read_to_string(replay_path) {
             Ok(c) => c,
@@ -62,6 +95,15 @@ fn main() {
                 if err_msg.contains("is a thread of") {
                     eprintln!("katana: {}", err_msg);
                     process::exit(exit_codes::USAGE_ERROR);
+                }
+                if !std::path::Path::new("/proc").exists() {
+                    eprintln!("katana: live kernel tracing requires Linux with /proc and eBPF support.");
+                    eprintln!("💡 Tip: Try running offline replay or built-in demo scenarios on macOS:");
+                    eprintln!("   katana demo");
+                    eprintln!("   katana demo all");
+                    eprintln!("   katana demo --open");
+                    eprintln!("   katana explain --replay fixtures/bio1_sync_io.json");
+                    process::exit(exit_codes::TARGET_NOT_FOUND); // 11
                 }
                 if !std::path::Path::new(&format!("/proc/{}", target_pid)).exists() {
                     eprintln!("katana: target PID {} not found or not visible", target_pid);
@@ -175,6 +217,9 @@ fn main() {
                         eprintln!("katana: failed to export HTML report: {}", e);
                     } else {
                         eprintln!("katana: exported anomaly HTML report to {}", out_path);
+                        if cli.open_browser {
+                            katana::demo::open_in_browser(&out_path);
+                        }
                     }
                 }
             }
@@ -196,6 +241,9 @@ fn main() {
             eprintln!("katana: failed to export HTML report: {}", e);
         } else {
             eprintln!("katana: exported static HTML report to {}", html_path);
+            if cli.open_browser {
+                katana::demo::open_in_browser(html_path);
+            }
         }
     }
 

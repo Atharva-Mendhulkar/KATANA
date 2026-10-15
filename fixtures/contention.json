@@ -1,0 +1,135 @@
+[
+  {
+    "ts_ns": 1000000000,
+    "ref": { "cpu": 0, "seq": 1 },
+    "thread": { "tid": 4217, "tgid": 4217 },
+    "kind": {
+      "FutexEnter": {
+        "uaddr": 2147422208,
+        "uaddr2": 0,
+        "cmd": "Wait",
+        "private": true,
+        "val": 0,
+        "val3": 4294967295,
+        "has_timeout": false,
+        "pi_word": null
+      }
+    }
+  },
+  {
+    "ts_ns": 1000001000,
+    "ref": { "cpu": 0, "seq": 2 },
+    "thread": { "tid": 4218, "tgid": 4217 },
+    "kind": {
+      "FutexEnter": {
+        "uaddr": 2147422208,
+        "uaddr2": 0,
+        "cmd": "Wait",
+        "private": true,
+        "val": 0,
+        "val3": 4294967295,
+        "has_timeout": false,
+        "pi_word": null
+      }
+    }
+  },
+  {
+    "ts_ns": 1000050000,
+    "ref": { "cpu": 0, "seq": 3 },
+    "thread": { "tid": 4217, "tgid": 4217 },
+    "kind": {
+      "Switch": {
+        "prev": { "tid": 4217, "tgid": 4217 },
+        "next": { "tid": 100, "tgid": 100 },
+        "prev_state": "Sleeping",
+        "preempted": false,
+        "in_iowait": false
+      }
+    }
+  },
+  {
+    "ts_ns": 2000000000,
+    "ref": { "cpu": 0, "seq": 4 },
+    "thread": { "tid": 4221, "tgid": 4217 },
+    "kind": {
+      "FutexEnter": {
+        "uaddr": 2147422208,
+        "uaddr2": 0,
+        "cmd": "Wake",
+        "private": true,
+        "val": 2,
+        "val3": 4294967295,
+        "has_timeout": false,
+        "pi_word": null
+      }
+    }
+  },
+  {
+    "ts_ns": 2000000100,
+    "ref": { "cpu": 0, "seq": 5 },
+    "thread": { "tid": 4221, "tgid": 4217 },
+    "kind": {
+      "Waking": {
+        "wakee": { "tid": 4217, "tgid": 4217 },
+        "target_cpu": 0,
+        "waker_ctx": "Task"
+      }
+    }
+  },
+  {
+    "ts_ns": 2000000200,
+    "ref": { "cpu": 0, "seq": 6 },
+    "thread": { "tid": 4221, "tgid": 4217 },
+    "kind": {
+      "Waking": {
+        "wakee": { "tid": 4218, "tgid": 4217 },
+        "target_cpu": 0,
+        "waker_ctx": "Task"
+      }
+    }
+  },
+  {
+    "ts_ns": 2000001000,
+    "ref": { "cpu": 0, "seq": 7 },
+    "thread": { "tid": 4221, "tgid": 4217 },
+    "kind": {
+      "FutexExit": {
+        "ret": 2
+      }
+    }
+  },
+  {
+    "ts_ns": 2000002000,
+    "ref": { "cpu": 0, "seq": 8 },
+    "thread": { "tid": 4217, "tgid": 4217 },
+    "kind": {
+      "FutexExit": {
+        "ret": 0
+      }
+    }
+  },
+  {
+    "ts_ns": 2000003000,
+    "ref": { "cpu": 0, "seq": 9 },
+    "thread": { "tid": 4218, "tgid": 4217 },
+    "kind": {
+      "FutexExit": {
+        "ret": 0
+      }
+    }
+  },
+  {
+    "ts_ns": 2000050000,
+    "ref": { "cpu": 0, "seq": 10 },
+    "thread": { "tid": 4217, "tgid": 4217 },
+    "kind": {
+      "Switch": {
+        "prev": { "tid": 100, "tgid": 100 },
+        "next": { "tid": 4217, "tgid": 4217 },
+        "prev_state": "Running",
+        "preempted": false,
+        "in_iowait": false
+      }
+    }
+  }
+]

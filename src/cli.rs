@@ -19,10 +19,16 @@ Katana - eBPF-based causal latency diagnosis tool
 Usage:
   katana explain <PID> [options]
   katana watch <PID> [options]
+  katana demo [scenario] [options]
+  katana doctor
+  katana fixtures
 
-Subcommands:
-  explain               Single-shot bounded observation window and root-cause analysis
-  watch                 Continuous ring-buffer watch mode with anomaly triggering
+Commands:
+  explain <PID>         Single-shot bounded observation window and root-cause analysis
+  watch <PID>           Continuous ring-buffer watch mode with anomaly triggering
+  demo [scenario]       Run interactive built-in demonstration traces (futex, io, writeback, watch, all)
+  doctor                Inspect system capabilities (kernel, eBPF, BTF, permissions)
+  fixtures              List available demonstration traces and causal rules
 
 Options:
   --duration <ms|s>     Observation window for explain (500ms..30s, default: 3000ms)
@@ -32,6 +38,7 @@ Options:
   --capacity <N>        Alias for --retention
   --max-episodes <N>    Exit watch mode after N detected episodes
   --html [path]         Export self-contained static HTML report (default: katana_report.html)
+  --open                Automatically open exported HTML report in default web browser
   --json                Emit report as JSON to stdout
   --verbose             Include detailed event provenance
   --tid <TID>           Filter by thread ID
@@ -51,9 +58,11 @@ pub struct CliArgs {
     pub max_episodes: Option<usize>,
     pub json: bool,
     pub html_path: Option<String>,
+    pub open_browser: bool,
     pub verbose: bool,
     pub max_depth: usize,
     pub replay_path: Option<String>,
+    pub demo_scenario: Option<String>,
 }
 
 impl Default for CliArgs {
@@ -68,9 +77,11 @@ impl Default for CliArgs {
             max_episodes: None,
             json: false,
             html_path: None,
+            open_browser: false,
             verbose: false,
             max_depth: 8,
             replay_path: None,
+            demo_scenario: None,
         }
     }
 }
@@ -99,14 +110,46 @@ fn parse_duration_ms(s: &str) -> Result<u64, String> {
     }
 }
 
+fn levenshtein(a: &str, b: &str) -> usize {
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    let mut dp = vec![vec![0; b_chars.len() + 1]; a_chars.len() + 1];
+
+    for (i, row) in dp.iter_mut().enumerate().take(a_chars.len() + 1) {
+        row[0] = i;
+    }
+    for (j, val) in dp[0].iter_mut().enumerate().take(b_chars.len() + 1) {
+        *val = j;
+    }
+
+    for (i, ca) in a_chars.iter().enumerate() {
+        for (j, cb) in b_chars.iter().enumerate() {
+            let cost = if ca == cb { 0 } else { 1 };
+            dp[i + 1][j + 1] = (dp[i][j + 1] + 1)
+                .min(dp[i + 1][j] + 1)
+                .min(dp[i][j] + cost);
+        }
+    }
+    dp[a_chars.len()][b_chars.len()]
+}
+
+fn suggest_command(input: &str) -> Option<&'static str> {
+    const KNOWN: &[&str] = &["explain", "watch", "demo", "doctor", "fixtures"];
+    KNOWN
+        .iter()
+        .copied()
+        .filter(|&cmd| levenshtein(input, cmd) <= 2)
+        .min_by_key(|&cmd| levenshtein(input, cmd))
+}
+
 pub fn parse_args(args: &[String]) -> ParseResult {
     if args.len() < 2 {
-        return ParseResult::Err("Usage: katana explain <PID> [options] | katana watch <PID> [options]".to_string());
+        return ParseResult::Err("Usage: katana <command> [options]\n\nTry 'katana demo' or 'katana --help' for available commands.".to_string());
     }
 
     // Check for global help or version flags anywhere in args
     for arg in args.iter().skip(1) {
-        if arg == "--help" || arg == "-h" {
+        if arg == "--help" || arg == "-h" || arg == "help" {
             return ParseResult::Help(HELP_TEXT.to_string());
         }
         if arg == "--version" || arg == "-v" || arg == "-V" {
@@ -121,12 +164,35 @@ pub fn parse_args(args: &[String]) -> ParseResult {
     if args[i] == "explain" || args[i] == "watch" {
         cli.command = args[i].clone();
         i += 1;
+    } else if args[i] == "demo" {
+        cli.command = "demo".to_string();
+        i += 1;
+        if i < args.len() && !args[i].starts_with("--") {
+            cli.demo_scenario = Some(args[i].clone());
+            i += 1;
+        }
+    } else if args[i] == "doctor" {
+        cli.command = "doctor".to_string();
+        i += 1;
+    } else if args[i] == "fixtures" || args[i] == "list" || args[i] == "scenarios" {
+        cli.command = "fixtures".to_string();
+        i += 1;
     } else if args[i].starts_with("--") {
         // Flag passed without explicit subcommand; default to explain
         cli.command = "explain".to_string();
-    } else {
-        // PID or positional argument passed directly; default to explain
+    } else if args[i].chars().all(|c| c.is_ascii_digit()) {
+        // PID passed directly; default to explain
         cli.command = "explain".to_string();
+    } else if let Some(sugg) = suggest_command(&args[i]) {
+        return ParseResult::Err(format!(
+            "Unknown command '{}'. Did you mean '{}'?",
+            args[i], sugg
+        ));
+    } else {
+        return ParseResult::Err(format!(
+            "Unknown command '{}'. Available commands: explain, watch, demo, doctor, fixtures.",
+            args[i]
+        ));
     }
 
     while i < args.len() {
@@ -192,6 +258,12 @@ pub fn parse_args(args: &[String]) -> ParseResult {
                     cli.html_path = Some("katana_report.html".to_string());
                 }
             }
+            "--open" => {
+                cli.open_browser = true;
+                if cli.html_path.is_none() {
+                    cli.html_path = Some("katana_report.html".to_string());
+                }
+            }
             "--threshold" | "--threshold-ms" => {
                 i += 1;
                 if i >= args.len() {
@@ -246,9 +318,10 @@ pub fn parse_args(args: &[String]) -> ParseResult {
         i += 1;
     }
 
-    if cli.pid.is_none() && cli.replay_path.is_none() {
+    let requires_pid = cli.command == "explain" || cli.command == "watch";
+    if requires_pid && cli.pid.is_none() && cli.replay_path.is_none() {
         return ParseResult::Err(format!(
-            "PID is required for 'katana {} <PID>' (or use --replay <path>)",
+            "PID is required for 'katana {} <PID>' (or use --replay <path> / try 'katana demo')",
             cli.command
         ));
     }
