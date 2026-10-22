@@ -27,6 +27,7 @@ Commands:
   explain <PID>         Single-shot bounded observation window and root-cause analysis
   watch <PID>           Continuous ring-buffer watch mode with anomaly triggering
   demo [scenario]       Run interactive built-in demonstration traces (futex, io, writeback, watch, all)
+  interactive, console  Run always-on interactive demonstration console
   doctor                Inspect system capabilities (kernel, eBPF, BTF, permissions)
   fixtures              List available demonstration traces and causal rules
 
@@ -134,7 +135,7 @@ fn levenshtein(a: &str, b: &str) -> usize {
 }
 
 fn suggest_command(input: &str) -> Option<&'static str> {
-    const KNOWN: &[&str] = &["explain", "watch", "demo", "doctor", "fixtures"];
+    const KNOWN: &[&str] = &["explain", "watch", "demo", "doctor", "fixtures", "interactive", "console"];
     KNOWN
         .iter()
         .copied()
@@ -144,7 +145,7 @@ fn suggest_command(input: &str) -> Option<&'static str> {
 
 pub fn parse_args(args: &[String]) -> ParseResult {
     if args.len() < 2 {
-        return ParseResult::Err("Usage: katana <command> [options]\n\nTry 'katana demo' or 'katana --help' for available commands.".to_string());
+        return ParseResult::Err("Usage: katana <command> [options]\n\nTry 'katana interactive' or 'katana --help' for available commands.".to_string());
     }
 
     // Check for global help or version flags anywhere in args
@@ -163,6 +164,9 @@ pub fn parse_args(args: &[String]) -> ParseResult {
     // Subcommand dispatch or implicit default
     if args[i] == "explain" || args[i] == "watch" {
         cli.command = args[i].clone();
+        i += 1;
+    } else if args[i] == "interactive" || args[i] == "console" || args[i] == "shell" || args[i] == "repl" {
+        cli.command = "interactive".to_string();
         i += 1;
     } else if args[i] == "demo" {
         cli.command = "demo".to_string();

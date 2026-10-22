@@ -12,12 +12,7 @@ pub const FIXTURE_BIO1: &str = include_str!("../fixtures/bio1_sync_io.json");
 pub const FIXTURE_BIO2: &str = include_str!("../fixtures/bio2_writeback.json");
 pub const FIXTURE_CONTENTION: &str = include_str!("../fixtures/contention.json");
 
-pub const BANNER: &str = "\x1b[1;36m\
-  _  __     _                        
- | |/ /__ _| |_ __ _ _ _  __ _       
- | ' </ _` |  _/ _` | ' \\/ _` |      
- |_|\\_\\__,_|\\__\\__,_|_||_\\__,_|      \x1b[0m\x1b[1;37m
- eBPF Causal Latency Diagnosis Engine\x1b[0m";
+pub const BANNER: &str = crate::logo::KATANA_BANNER;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Scenario {
@@ -26,6 +21,7 @@ pub enum Scenario {
     Writeback,
     Watch,
     All,
+    Interactive,
 }
 
 impl Scenario {
@@ -36,6 +32,7 @@ impl Scenario {
             "writeback" | "async-io" | "bio2" => Some(Scenario::Writeback),
             "watch" | "monitor" => Some(Scenario::Watch),
             "all" | "full" | "tour" => Some(Scenario::All),
+            "interactive" | "cli" | "console" | "shell" | "repl" => Some(Scenario::Interactive),
             _ => None,
         }
     }
@@ -47,6 +44,7 @@ impl Scenario {
             Scenario::Writeback => "Asynchronous Kernel Writeback Non-Attribution (Rule BIO-2)",
             Scenario::Watch => "Continuous Ring-Buffer Watch Anomaly Trigger (ADR-015)",
             Scenario::All => "Complete Tour of Katana Causal Diagnosis Scenarios",
+            Scenario::Interactive => "Always-On Interactive Demonstration Console",
         }
     }
 
@@ -57,6 +55,7 @@ impl Scenario {
             Scenario::Writeback => "Target thread dirties page cache; kworker flush thread performs writeback on block device. Clamped to CORRELATED with disclaimer.",
             Scenario::Watch => "Continuous sliding ring-buffer with circular retention (5000 events) and 10ms threshold. Instantly captures & explains off-CPU latency spikes.",
             Scenario::All => "Demonstrates all core latency causal archetypes in sequence.",
+            Scenario::Interactive => "Interactive shell allowing full live exploration of all Katana rules and features.",
         }
     }
 }
@@ -69,6 +68,11 @@ pub fn run_scenario(
     json: bool,
     verbose: bool,
 ) {
+    if scenario == Scenario::Interactive {
+        crate::interactive::run_interactive_cli();
+        return;
+    }
+
     if scenario == Scenario::All {
         println!("{}\n", BANNER);
         println!("\x1b[1;32m=== Starting Katana Complete Architecture Tour ===\x1b[0m\n");
@@ -119,7 +123,7 @@ fn run_single_scenario(
         Scenario::SyncIo => (FIXTURE_BIO1, 4217, "postgres_wal"),
         Scenario::Writeback => (FIXTURE_BIO2, 4217, "file_writer"),
         Scenario::Watch => (FIXTURE_BIO1, 4217, "latency_service"),
-        Scenario::All => unreachable!(),
+        Scenario::All | Scenario::Interactive => unreachable!(),
     };
 
     let events: Vec<Event> = serde_json::from_str(fixture_json)

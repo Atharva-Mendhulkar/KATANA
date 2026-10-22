@@ -7,6 +7,8 @@ pub mod evidence;
 pub mod futex;
 pub mod graph;
 pub mod html_export;
+pub mod interactive;
+pub mod logo;
 pub mod output;
 pub mod renderer;
 pub mod scheduler;

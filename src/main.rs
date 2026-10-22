@@ -12,6 +12,17 @@ use katana::Engine;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+
+    if args.len() < 2 {
+        if std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+            katana::interactive::run_interactive_cli();
+            process::exit(exit_codes::SUCCESS);
+        } else {
+            eprintln!("Usage: katana <command> [options]\n\nTry 'katana interactive' or 'katana --help' for available commands.");
+            process::exit(exit_codes::USAGE_ERROR);
+        }
+    }
+
     let cli = match parse_args(&args) {
         ParseResult::Ok(c) => c,
         ParseResult::Help(h) => {
@@ -27,6 +38,11 @@ fn main() {
             process::exit(exit_codes::USAGE_ERROR);
         }
     };
+
+    if cli.command == "interactive" || cli.command == "console" || cli.command == "shell" || cli.command == "repl" {
+        katana::interactive::run_interactive_cli();
+        process::exit(exit_codes::SUCCESS);
+    }
 
     if cli.command == "doctor" {
         katana::demo::run_doctor();
@@ -44,7 +60,7 @@ fn main() {
             Some(s) => s,
             None => {
                 eprintln!(
-                    "katana demo: unknown scenario '{}'. Available: futex, io, writeback, watch, all",
+                    "katana demo: unknown scenario '{}'. Available: futex, io, writeback, watch, all, interactive",
                     scenario_str
                 );
                 process::exit(exit_codes::USAGE_ERROR);

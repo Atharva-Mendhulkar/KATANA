@@ -114,33 +114,34 @@ fn test_watch_mode_threshold_triggering() {
     let mut watcher = Watcher::new(config, ident);
 
     // Stream 1: Short sleep (10 ms < 50 ms threshold)
-    let mut short_events = Vec::new();
-    // Target switches off CPU at t = 100 ms
-    short_events.push(Event::new(
-        100_000_000,
-        EventRef::new(0, 1),
-        ThreadId::new(target_tid, target_tid),
-        katana::events::EventKind::Switch(SchedSwitch {
-            prev: ThreadId::new(target_tid, target_tid),
-            next: ThreadId::new(other_tid, other_tid),
-            prev_state: TaskState::Sleeping,
-            preempted: false,
-            in_iowait: false,
-        }),
-    ));
-    // Target switches back on CPU at t = 110 ms (10 ms delta)
-    short_events.push(Event::new(
-        110_000_000,
-        EventRef::new(0, 2),
-        ThreadId::new(other_tid, other_tid),
-        katana::events::EventKind::Switch(SchedSwitch {
-            prev: ThreadId::new(other_tid, other_tid),
-            next: ThreadId::new(target_tid, target_tid),
-            prev_state: TaskState::Running,
-            preempted: false,
-            in_iowait: false,
-        }),
-    ));
+    let short_events = vec![
+        // Target switches off CPU at t = 100 ms
+        Event::new(
+            100_000_000,
+            EventRef::new(0, 1),
+            ThreadId::new(target_tid, target_tid),
+            katana::events::EventKind::Switch(SchedSwitch {
+                prev: ThreadId::new(target_tid, target_tid),
+                next: ThreadId::new(other_tid, other_tid),
+                prev_state: TaskState::Sleeping,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+        // Target switches back on CPU at t = 110 ms (10 ms delta)
+        Event::new(
+            110_000_000,
+            EventRef::new(0, 2),
+            ThreadId::new(other_tid, other_tid),
+            katana::events::EventKind::Switch(SchedSwitch {
+                prev: ThreadId::new(other_tid, other_tid),
+                next: ThreadId::new(target_tid, target_tid),
+                prev_state: TaskState::Running,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+    ];
 
     let triggered_short = watcher.process_event_stream(short_events);
     assert_eq!(
@@ -150,44 +151,45 @@ fn test_watch_mode_threshold_triggering() {
     );
 
     // Stream 2: Long sleep (70 ms > 50 ms threshold)
-    let mut long_events = Vec::new();
-    // Target switches off CPU at t = 200 ms
-    long_events.push(Event::new(
-        200_000_000,
-        EventRef::new(0, 3),
-        ThreadId::new(target_tid, target_tid),
-        katana::events::EventKind::Switch(SchedSwitch {
-            prev: ThreadId::new(target_tid, target_tid),
-            next: ThreadId::new(other_tid, other_tid),
-            prev_state: TaskState::Sleeping,
-            preempted: false,
-            in_iowait: false,
-        }),
-    ));
-    // Waker wakes target at t = 270 ms (70 ms delta)
-    long_events.push(Event::new(
-        270_000_000,
-        EventRef::new(0, 4),
-        ThreadId::new(other_tid, other_tid),
-        katana::events::EventKind::Waking(SchedWaking {
-            wakee: ThreadId::new(target_tid, target_tid),
-            target_cpu: 0,
-            waker_ctx: WakerCtx::Task,
-        }),
-    ));
-    // Target switches back on CPU at t = 271 ms
-    long_events.push(Event::new(
-        271_000_000,
-        EventRef::new(0, 5),
-        ThreadId::new(other_tid, other_tid),
-        katana::events::EventKind::Switch(SchedSwitch {
-            prev: ThreadId::new(other_tid, other_tid),
-            next: ThreadId::new(target_tid, target_tid),
-            prev_state: TaskState::Running,
-            preempted: false,
-            in_iowait: false,
-        }),
-    ));
+    let long_events = vec![
+        // Target switches off CPU at t = 200 ms
+        Event::new(
+            200_000_000,
+            EventRef::new(0, 3),
+            ThreadId::new(target_tid, target_tid),
+            katana::events::EventKind::Switch(SchedSwitch {
+                prev: ThreadId::new(target_tid, target_tid),
+                next: ThreadId::new(other_tid, other_tid),
+                prev_state: TaskState::Sleeping,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+        // Waker wakes target at t = 270 ms (70 ms delta)
+        Event::new(
+            270_000_000,
+            EventRef::new(0, 4),
+            ThreadId::new(other_tid, other_tid),
+            katana::events::EventKind::Waking(SchedWaking {
+                wakee: ThreadId::new(target_tid, target_tid),
+                target_cpu: 0,
+                waker_ctx: WakerCtx::Task,
+            }),
+        ),
+        // Target switches back on CPU at t = 271 ms
+        Event::new(
+            271_000_000,
+            EventRef::new(0, 5),
+            ThreadId::new(other_tid, other_tid),
+            katana::events::EventKind::Switch(SchedSwitch {
+                prev: ThreadId::new(other_tid, other_tid),
+                next: ThreadId::new(target_tid, target_tid),
+                prev_state: TaskState::Running,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+    ];
 
     let triggered_long = watcher.process_event_stream(long_events);
     assert_eq!(
