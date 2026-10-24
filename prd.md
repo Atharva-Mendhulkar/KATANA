@@ -1447,7 +1447,7 @@ Each item links to the test/artifact that proves it; an item without an artifact
 - [x] JSON validates against `schema/report.v1.json`; `schema` field present; compat fixtures pass. [IMPLEMENTED in schema/report.v1.json & src/output.rs]
 - [x] Same trace ⇒ identical output (replay determinism). [IMPLEMENTED in tests/fault_injection_tests.rs Test 8]
 - [x] Exit codes per §16.2 verified by tests. [IMPLEMENTED in src/cli.rs]
-- [ ] Every sentence in `--verbose` output maps to evidence ids and raw event refs.
+- [x] Every sentence in `--verbose` output maps to evidence ids and raw event refs. [IMPLEMENTED in src/renderer.rs & tests/anti_inflation_tests.rs]
 
 **Safety / security**
 - [ ] No ptrace/signals/priority changes; forbidden-helper CI gate green.

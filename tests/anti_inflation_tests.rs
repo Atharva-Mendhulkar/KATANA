@@ -96,3 +96,64 @@ fn test_renderer_anti_inflation_lint() {
     assert!(!lower.contains("because of"));
     assert!(!lower.contains("due to"));
 }
+
+#[test]
+fn test_verbose_evidence_provenance_mapping() {
+    let subject = ThreadId::new(101, 100);
+    let finding = Finding {
+        kind: FindingKind::FutexWakeChain,
+        subject,
+        blocked_duration_ns: 50_000_000,
+        explained_fraction_per_mille: 1000,
+        chain: None,
+        evidence_ids: vec!["E1".to_string()],
+        weakest_strength: EvidenceStrength::Moderate,
+        has_causal_edge: true,
+        is_direct_subject: true,
+        hop_count: 1,
+        details: "Futex wake chain".to_string(),
+        t_start: 1_000_000_000,
+    };
+    let ev1 = Evidence::new(
+        "E1".to_string(),
+        EvidenceClass::Causal,
+        EvidenceBasis::Derived,
+        EvidenceStrength::Moderate,
+        EvidenceQuality::Full,
+        RuleId::Fw1,
+        "TID 101 released by futex wake".to_string(),
+        vec![katana::scheduler::EventRef::new(1, 42)],
+        vec!["ASSUME_FUTEX_WAKE_ONLY".to_string()],
+        Vec::new(),
+    );
+    let report = katana::output::Report::new(
+        katana::output::TargetIdentity {
+            tgid: 100,
+            pid: 100,
+            comm: "target".to_string(),
+            start_time_ticks: 1234,
+            boot_id: "0000".to_string(),
+        },
+        katana::output::WindowInfo {
+            duration_ns: 100_000_000,
+            t_start_ns: 1_000_000_000,
+            t_end_ns: 1_100_000_000,
+        },
+        Diagnosis {
+            status: DiagStatus::Found,
+            primary: Some(finding),
+            alternatives: Vec::new(),
+            context: Vec::new(),
+            completeness: Completeness::Complete,
+            limitations: Vec::new(),
+        },
+        vec![ev1],
+        katana::output::CollectionStats::default(),
+    );
+
+    let verbose_out = katana::renderer::render_report(&report, true);
+    assert!(verbose_out.contains("Primary Evidence IDs: E1"));
+    assert!(verbose_out.contains("Evidence Provenance Records:"));
+    assert!(verbose_out.contains("[E1]"));
+    assert!(verbose_out.contains("cpu:1 seq:42"));
+}

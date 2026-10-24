@@ -304,7 +304,7 @@ fn main() {
             }
         }
     } else {
-        let rendered = render_diagnosis(&report.diagnosis, cli.verbose);
+        let rendered = katana::renderer::render_report(&report, cli.verbose);
         print!("{}", rendered);
     }
 

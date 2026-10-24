@@ -222,3 +222,34 @@ pub fn render_diagnosis(diag: &Diagnosis, verbose: bool) -> String {
 
     out
 }
+
+/// Complete report text renderer mapping findings and evidence to raw provenance (PRD §15, §16, §31).
+pub fn render_report(report: &crate::output::Report, verbose: bool) -> String {
+    let mut out = render_diagnosis(&report.diagnosis, verbose);
+
+    if verbose && !report.evidence.is_empty() {
+        out.push_str("\nEvidence Provenance Records:\n");
+        for ev in &report.evidence {
+            let prov_str = if ev.provenance.is_empty() {
+                "none".to_string()
+            } else {
+                ev.provenance
+                    .iter()
+                    .map(|p| format!("cpu:{} seq:{}", p.cpu, p.seq))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            };
+            let assum_str = if ev.assumptions.is_empty() {
+                String::new()
+            } else {
+                format!(" [assumptions: {}]", ev.assumptions.join(", "))
+            };
+            out.push_str(&format!(
+                "  - [{}] {:?} ({} / {:?}): {}{} (provenance: [{}])\n",
+                ev.id, ev.class, ev.rule.name(), ev.strength, ev.description, assum_str, prov_str
+            ));
+        }
+    }
+
+    out
+}
