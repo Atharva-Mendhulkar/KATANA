@@ -105,6 +105,9 @@ pub fn render_diagnosis(diag: &Diagnosis, verbose: bool) -> String {
                                 TerminalReason::DepthLimit => {
                                     out.push_str("Chain truncated at depth limit 8.\n");
                                 }
+                                TerminalReason::BlockedOnDevice => {
+                                    out.push_str("Terminal waker was blocked on a block I/O device before wake.\n");
+                                }
                                 _ => out.push('\n'),
                             }
                         } else {

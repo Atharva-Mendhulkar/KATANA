@@ -485,3 +485,469 @@ fn test_decode_raw_sched_and_futex() {
     }
 }
 
+#[test]
+fn test_bio_futex_waker_blocked_on_device() {
+    use katana::futex::{FutexCmd, FutexEnter, FutexExit};
+    use katana::graph::TerminalReason;
+    use katana::scheduler::{SchedWaking, WakerCtx};
+
+    let t1 = ThreadId::new(4217, 4217); // Subject
+    let t2 = ThreadId::new(4218, 4217); // Helper thread
+    let dev_id = 0x80001;
+    let req_id = 0x9999_u64;
+
+    let events = vec![
+        // 1. T1 enters futex wait at uaddr 0x7fff0000
+        Event::new(
+            1_000_000_000,
+            EventRef::new(0, 1),
+            t1,
+            EventKind::FutexEnter(FutexEnter {
+                uaddr: 0x7fff_0000,
+                uaddr2: 0,
+                cmd: FutexCmd::Wait,
+                private: true,
+                val: 0,
+                val3: 0,
+                has_timeout: false,
+                pi_word: None,
+            }),
+        ),
+        // 2. T1 sleeps
+        Event::new(
+            1_000_010_000,
+            EventRef::new(0, 2),
+            t1,
+            EventKind::Switch(SchedSwitch {
+                prev: t1,
+                next: ThreadId::new(100, 100),
+                prev_state: TaskState::Sleeping,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+        // 3. T2 issues synchronous block request on disk
+        Event::new(
+            1_000_050_000,
+            EventRef::new(0, 3),
+            t2,
+            EventKind::BlockRqIssue(BlockRqIssue::new(
+                dev_id,
+                req_id,
+                1024,
+                8,
+                "WS",
+                t2,
+                1_000_050_000,
+            )),
+        ),
+        // 4. T2 goes off-CPU in iowait
+        Event::new(
+            1_000_060_000,
+            EventRef::new(0, 4),
+            t2,
+            EventKind::Switch(SchedSwitch {
+                prev: t2,
+                next: ThreadId::new(100, 100),
+                prev_state: TaskState::IoWait,
+                preempted: false,
+                in_iowait: true,
+            }),
+        ),
+        // 5. Block request completes
+        Event::new(
+            1_030_000_000,
+            EventRef::new(0, 5),
+            ThreadId::new(0, 0),
+            EventKind::BlockRqComplete(BlockRqComplete::new(
+                dev_id,
+                req_id,
+                4096,
+                0,
+                1_030_000_000,
+            )),
+        ),
+        // 6. T2 switches back in on CPU
+        Event::new(
+            1_030_050_000,
+            EventRef::new(0, 6),
+            t2,
+            EventKind::Switch(SchedSwitch {
+                prev: ThreadId::new(100, 100),
+                next: t2,
+                prev_state: TaskState::Running,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+        // 7. T2 enters futex wake
+        Event::new(
+            1_030_100_000,
+            EventRef::new(0, 7),
+            t2,
+            EventKind::FutexEnter(FutexEnter {
+                uaddr: 0x7fff_0000,
+                uaddr2: 0,
+                cmd: FutexCmd::Wake,
+                private: true,
+                val: 1,
+                val3: 0,
+                has_timeout: false,
+                pi_word: None,
+            }),
+        ),
+        // 8. T2 wakes T1
+        Event::new(
+            1_030_120_000,
+            EventRef::new(0, 8),
+            t2,
+            EventKind::Waking(SchedWaking {
+                wakee: t1,
+                target_cpu: 0,
+                waker_ctx: WakerCtx::Task,
+            }),
+        ),
+        // 9. T2 exits futex wake with ret=1
+        Event::new(
+            1_030_150_000,
+            EventRef::new(0, 9),
+            t2,
+            EventKind::FutexExit(FutexExit { ret: 1 }),
+        ),
+        // 10. T1 exits futex wait
+        Event::new(
+            1_030_180_000,
+            EventRef::new(0, 10),
+            t1,
+            EventKind::FutexExit(FutexExit { ret: 0 }),
+        ),
+        // 11. T1 returns to CPU
+        Event::new(
+            1_030_200_000,
+            EventRef::new(0, 11),
+            t1,
+            EventKind::Switch(SchedSwitch {
+                prev: ThreadId::new(100, 100),
+                next: t1,
+                prev_state: TaskState::Running,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+    ];
+
+    let engine = Engine::new(8);
+    let report = engine.analyze(4217, Some(4217), events, LossLedger::new());
+
+    assert_eq!(report.diagnosis.status, DiagStatus::Found);
+    let primary = report.diagnosis.primary.as_ref().expect("Expected primary finding");
+    assert_eq!(primary.kind, FindingKind::FutexWakeChain);
+
+    let chain = primary.chain.as_ref().expect("Expected causal chain");
+    assert_eq!(chain.depth, 1);
+    assert_eq!(chain.hops[0].waker.tid, 4218);
+    assert_eq!(chain.terminal_reason, TerminalReason::BlockedOnDevice);
+
+    let rendered = render_diagnosis(&report.diagnosis, false);
+    assert!(
+        rendered.contains("Terminal waker was blocked on a block I/O device before wake"),
+        "Rendered text must identify waker's prior block I/O wait"
+    );
+}
+
+#[test]
+fn test_bio_buffered_read_miss() {
+    let target = ThreadId::new(4217, 4217);
+    let dev_id = 0x80002;
+    let req_id = 0x5555_u64;
+
+    let events = vec![
+        Event::new(
+            1_000_000_000,
+            EventRef::new(0, 1),
+            target,
+            EventKind::BlockRqIssue(BlockRqIssue::new(
+                dev_id,
+                req_id,
+                8192,
+                16,
+                "R",
+                target,
+                1_000_000_000,
+            )),
+        ),
+        Event::new(
+            1_000_050_000,
+            EventRef::new(0, 2),
+            target,
+            EventKind::Switch(SchedSwitch {
+                prev: target,
+                next: ThreadId::new(100, 100),
+                prev_state: TaskState::IoWait,
+                preempted: false,
+                in_iowait: true,
+            }),
+        ),
+        Event::new(
+            1_015_000_000,
+            EventRef::new(0, 3),
+            ThreadId::new(0, 0),
+            EventKind::BlockRqComplete(BlockRqComplete::new(
+                dev_id,
+                req_id,
+                8192,
+                0,
+                1_015_000_000,
+            )),
+        ),
+        Event::new(
+            1_015_050_000,
+            EventRef::new(0, 4),
+            target,
+            EventKind::Switch(SchedSwitch {
+                prev: ThreadId::new(100, 100),
+                next: target,
+                prev_state: TaskState::Running,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+    ];
+
+    let engine = Engine::new(8);
+    let report = engine.analyze(4217, Some(4217), events, LossLedger::new());
+
+    assert_eq!(report.diagnosis.status, DiagStatus::Found);
+    let primary = report.diagnosis.primary.as_ref().expect("Expected primary finding");
+    assert_eq!(primary.kind, FindingKind::BlockIoWait);
+    assert!(primary.has_causal_edge);
+    assert_eq!(primary.weakest_strength, EvidenceStrength::Moderate);
+}
+
+#[test]
+fn test_bio_buffered_write_no_block() {
+    let target = ThreadId::new(4217, 4217);
+    let kworker = ThreadId::new(99, 0);
+    let dev_id = 0x80001;
+
+    // Target thread writes to page cache, never blocks or enters iowait
+    let events = vec![
+        Event::new(
+            1_000_000_000,
+            EventRef::new(0, 1),
+            target,
+            EventKind::Switch(SchedSwitch {
+                prev: target,
+                next: ThreadId::new(100, 100),
+                prev_state: TaskState::Running, // Preempted or voluntary yield, NOT sleeping/iowait
+                preempted: true,
+                in_iowait: false,
+            }),
+        ),
+        // Background writeback occurs later
+        Event::new(
+            1_010_000_000,
+            EventRef::new(0, 2),
+            kworker,
+            EventKind::BlockRqIssue(BlockRqIssue::new(
+                dev_id,
+                0x7777,
+                4096,
+                8,
+                "W",
+                kworker,
+                1_010_000_000,
+            )),
+        ),
+        Event::new(
+            1_015_000_000,
+            EventRef::new(0, 3),
+            kworker,
+            EventKind::BlockRqComplete(BlockRqComplete::new(
+                dev_id,
+                0x7777,
+                4096,
+                0,
+                1_015_000_000,
+            )),
+        ),
+        Event::new(
+            1_020_000_000,
+            EventRef::new(0, 4),
+            target,
+            EventKind::Switch(SchedSwitch {
+                prev: ThreadId::new(100, 100),
+                next: target,
+                prev_state: TaskState::Running,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+    ];
+
+    let engine = Engine::new(8);
+    let report = engine.analyze(4217, Some(4217), events, LossLedger::new());
+
+    // Should NOT report BlockIoWait for target thread
+    if let Some(primary) = report.diagnosis.primary {
+        assert_ne!(primary.kind, FindingKind::BlockIoWait);
+    }
+}
+
+#[test]
+fn test_bio_concurrent_requests_attribution() {
+    let target = ThreadId::new(4217, 4217);
+    let dev_id = 0x80001;
+
+    let events = vec![
+        // Request 1 issued
+        Event::new(
+            1_000_000_000,
+            EventRef::new(0, 1),
+            target,
+            EventKind::BlockRqIssue(BlockRqIssue::new(
+                dev_id,
+                0xaaa1,
+                100,
+                4,
+                "WS",
+                target,
+                1_000_000_000,
+            )),
+        ),
+        // Request 2 issued concurrently
+        Event::new(
+            1_000_010_000,
+            EventRef::new(0, 2),
+            target,
+            EventKind::BlockRqIssue(BlockRqIssue::new(
+                dev_id,
+                0xaaa2,
+                200,
+                8,
+                "WS",
+                target,
+                1_000_010_000,
+            )),
+        ),
+        // Target goes to sleep in iowait
+        Event::new(
+            1_000_020_000,
+            EventRef::new(0, 3),
+            target,
+            EventKind::Switch(SchedSwitch {
+                prev: target,
+                next: ThreadId::new(100, 100),
+                prev_state: TaskState::IoWait,
+                preempted: false,
+                in_iowait: true,
+            }),
+        ),
+        // Request 1 completes
+        Event::new(
+            1_020_000_000,
+            EventRef::new(0, 4),
+            ThreadId::new(0, 0),
+            EventKind::BlockRqComplete(BlockRqComplete::new(
+                dev_id,
+                0xaaa1,
+                2048,
+                0,
+                1_020_000_000,
+            )),
+        ),
+        // Target wakes up
+        Event::new(
+            1_020_050_000,
+            EventRef::new(0, 5),
+            target,
+            EventKind::Switch(SchedSwitch {
+                prev: ThreadId::new(100, 100),
+                next: target,
+                prev_state: TaskState::Running,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+    ];
+
+    let engine = Engine::new(8);
+    let report = engine.analyze(4217, Some(4217), events, LossLedger::new());
+
+    assert_eq!(report.diagnosis.status, DiagStatus::Found);
+    let primary = report.diagnosis.primary.as_ref().expect("Expected primary finding");
+    assert_eq!(primary.kind, FindingKind::BlockIoWait);
+    assert!(primary.has_causal_edge);
+}
+
+#[test]
+fn test_bio_async_io_worker_unsupported() {
+    let target = ThreadId::new(4217, 4217);
+    let iowq_worker = ThreadId::new(5000, 0); // io-wq worker thread
+    let dev_id = 0x80001;
+
+    let events = vec![
+        // Target thread sleeps
+        Event::new(
+            1_000_000_000,
+            EventRef::new(0, 1),
+            target,
+            EventKind::Switch(SchedSwitch {
+                prev: target,
+                next: ThreadId::new(100, 100),
+                prev_state: TaskState::Sleeping,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+        // io-wq worker submits block request on behalf of target
+        Event::new(
+            1_005_000_000,
+            EventRef::new(0, 2),
+            iowq_worker,
+            EventKind::BlockRqIssue(BlockRqIssue::new(
+                dev_id,
+                0x8888,
+                512,
+                4,
+                "R",
+                iowq_worker,
+                1_005_000_000,
+            )),
+        ),
+        Event::new(
+            1_015_000_000,
+            EventRef::new(0, 3),
+            iowq_worker,
+            EventKind::BlockRqComplete(BlockRqComplete::new(
+                dev_id,
+                0x8888,
+                2048,
+                0,
+                1_015_000_000,
+            )),
+        ),
+        Event::new(
+            1_020_000_000,
+            EventRef::new(0, 4),
+            target,
+            EventKind::Switch(SchedSwitch {
+                prev: ThreadId::new(100, 100),
+                next: target,
+                prev_state: TaskState::Running,
+                preempted: false,
+                in_iowait: false,
+            }),
+        ),
+    ];
+
+    let engine = Engine::new(8);
+    let report = engine.analyze(4217, Some(4217), events, LossLedger::new());
+
+    // Per PRD §32.1: io-wq worker submitter cannot yield direct causal BlockIoWait for target
+    if let Some(primary) = report.diagnosis.primary {
+        assert_ne!(primary.kind, FindingKind::BlockIoWait);
+    }
+}
+
+

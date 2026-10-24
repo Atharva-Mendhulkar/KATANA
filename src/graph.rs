@@ -214,6 +214,26 @@ impl CausalGraph {
             if let Some(prior) = prior_wait {
                 cur_wait = prior.clone();
             } else {
+                // Check if waker had an open BlockedOnDevice edge ending immediately before the wake (PRD §12.3)
+                let prior_bio = self.edges.iter().find(|e| {
+                    if e.relation == Relation::BlockedOnDevice {
+                        if let Node::Thread(t) = &e.dst {
+                            if t.tid == waker.tid
+                                && e.t_end <= edge.t_end
+                                && edge.t_end.saturating_sub(e.t_end) <= 1_000_000
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                });
+
+                if prior_bio.is_some() {
+                    terminal_reason = TerminalReason::BlockedOnDevice;
+                    break;
+                }
+
                 // Waker was running on CPU before this wake
                 terminal_reason = TerminalReason::WakerRunning;
                 break;
