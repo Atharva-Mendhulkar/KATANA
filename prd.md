@@ -1458,7 +1458,7 @@ Each item links to the test/artifact that proves it; an item without an artifact
 - [ ] Benchmarks B1–B7 executed on a dedicated host with ≥ 10 trials; results committed; no claim in docs without a result reference.
 - [ ] Ring-buffer-loss knee characterised (B5) and documented.
 - [ ] Docs complete (§29); README prior-art paragraph present; banned-terms check green.
-- [ ] Reproducible test environment: documented VM/container recipe that runs e2e from a clean checkout.
+- [x] Reproducible test environment: documented VM/container recipe that runs e2e from a clean checkout. [IMPLEMENTED in Containerfile & scripts/run-e2e-container.sh]
 - [ ] Every OTQ is either resolved (with experiment reference) or listed in `LIMITATIONS.md`.
 
 ---

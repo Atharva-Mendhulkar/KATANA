@@ -112,6 +112,18 @@ qemu-system-x86_64 \
   -enable-kvm -m 2G -smp 2 -nographic
 ```
 
+### Option D: Containerized Clean-Room Testing (PRD §27, §31)
+For automated verification in an isolated, clean-room environment matching CI:
+```bash
+# Build and run the entire verification suite inside an isolated Ubuntu 24.04 container
+./scripts/run-e2e-container.sh
+
+# Or run ad-hoc via Podman / Docker:
+podman build -t katana:latest -f Containerfile .
+podman run --rm katana:latest doctor
+podman run --rm katana:latest demo all
+```
+
 ---
 
 ## 6. Development Rules & Invariants
