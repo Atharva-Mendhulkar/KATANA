@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KATANA Report - PID 4217</title>
+  <style>
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #050505;
+  color: #efefef;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "SF Pro Display", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 40px 24px 80px 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1px solid #222222;
+  padding-bottom: 20px;
+  margin-bottom: 32px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.brand-title {
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #ffffff;
+}
+
+.brand-sub {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: #777777;
+}
+
+.meta-tag {
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  color: #555555;
+  letter-spacing: 1px;
+}
+
+.card {
+  background-color: #0c0c0c;
+  border: 1px solid #1e1e1e;
+  border-radius: 4px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.status-pill {
+  display: inline-block;
+  background-color: #ffffff;
+  color: #000000;
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border-radius: 2px;
+}
+
+.completeness-tag {
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: #888888;
+  margin-left: 12px;
+  letter-spacing: 0.5px;
+}
+
+.primary-finding-row {
+  margin-bottom: 24px;
+}
+
+.finding-kind {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.finding-desc {
+  font-size: 14px;
+  color: #bbbbbb;
+  max-width: 860px;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  border-top: 1px solid #1a1a1a;
+  padding-top: 20px;
+}
+
+.metric-box {
+  background-color: #121212;
+  border: 1px solid #1a1a1a;
+  padding: 14px 16px;
+  border-radius: 3px;
+}
+
+.metric-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #666666;
+  margin-bottom: 6px;
+}
+
+.metric-val {
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  background-color: #080808;
+}
+
+.meta-cell {
+  padding: 8px 0;
+}
+
+.cell-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #666666;
+  margin-bottom: 4px;
+}
+
+.cell-val {
+  font-size: 13px;
+  color: #e0e0e0;
+}
+
+.font-mono {
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+}
+
+.small {
+  font-size: 11px;
+}
+
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #777777;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #1a1a1a;
+  padding-bottom: 10px;
+}
+
+.graph-wrapper {
+  overflow-x: auto;
+  padding: 10px 0;
+}
+
+.graph-svg {
+  min-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.empty-graph-msg {
+  color: #666666;
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.evidence-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.evidence-table th {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #666666;
+  border-bottom: 1px solid #222222;
+  padding: 10px 12px;
+}
+
+.evidence-table td {
+  padding: 12px 12px;
+  border-bottom: 1px solid #161616;
+  font-size: 12px;
+  color: #d0d0d0;
+  vertical-align: top;
+}
+
+.evidence-table tbody tr:hover {
+  background-color: #121212;
+}
+
+.badge-class {
+  display: inline-block;
+  border: 1px solid #333333;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.statement-cell {
+  line-height: 1.5;
+  color: #cccccc;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  background-color: #080808;
+}
+
+.stat-box {
+  padding: 12px 16px;
+  border-left: 2px solid #222222;
+}
+
+.stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #555555;
+  margin-bottom: 4px;
+}
+
+.stat-val {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.footer {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid #1a1a1a;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #444444;
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.5px;
+}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="brand-row">
+        <span class="brand-title">KATANA</span>
+        <span class="brand-sub">LATENCY ROOT-CAUSE ANALYSIS</span>
+      </div>
+      <div class="meta-tag">SCHEMA v1.0 &bull; OFFLINE REPORT</div>
+    </header>
+
+    <section class="card diagnosis-card">
+      <div class="card-header-row">
+        <div class="card-title-group">
+          <span class="status-pill">DIAGNOSIS FOUND</span>
+          <span class="completeness-tag">COMPLETENESS: COMPLETE</span>
+        </div>
+      </div>
+      <div class="primary-finding-row">
+        <div class="finding-kind">BlockIoWait</div>
+        <div class="finding-desc">dev_t 0x80001</div>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <div class="metric-label">BLOCKED DURATION</div>
+          <div class="metric-val">20.00 ms</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">EXPLAINED FRACTION</div>
+          <div class="metric-val">100.0%</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">WEAKEST STRENGTH</div>
+          <div class="metric-val">Moderate</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">CHAIN DEPTH</div>
+          <div class="metric-val">1 HOPS</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card meta-grid">
+      <div class="meta-cell">
+        <span class="cell-label">TARGET PID</span>
+        <span class="cell-val font-mono">4217</span>
+      </div>
+      <div class="meta-cell">
+        <span class="cell-label">PROCESS COMM</span>
+        <span class="cell-val font-mono">postgres_wal</span>
+      </div>
+      <div class="meta-cell">
+        <span class="cell-label">THREAD GROUP TGID</span>
+        <span class="cell-val font-mono">4217</span>
+      </div>
+      <div class="meta-cell">
+        <span class="cell-label">WINDOW DURATION</span>
+        <span class="cell-val font-mono">20.05 ms</span>
+      </div>
+      <div class="meta-cell">
+        <span class="cell-label">BOOT ID</span>
+        <span class="cell-val font-mono small">00000000-0000-0000-0000-000000000000</span>
+      </div>
+      <div class="meta-cell">
+        <span class="cell-label">START TICKS</span>
+        <span class="cell-val font-mono small">123456</span>
+      </div>
+    </section>
+
+    <section class="card graph-card">
+      <div class="section-title">CAUSAL GRAPH TOPOLOGY</div>
+      <div class="graph-wrapper">
+        <svg viewBox="0 0 640 160" class="graph-svg" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#ffffff"/>
+            </marker>
+          </defs>
+          <rect x="40" y="45" width="180" height="76" rx="4" fill="#161616" stroke="#ffffff" stroke-width="1.5"/>
+          <text x="52" y="65" fill="#888888" font-size="9" font-family="monospace" letter-spacing="1">TARGET THREAD</text>
+          <text x="52" y="87" fill="#ffffff" font-size="13" font-family="sans-serif" font-weight="600">TID 4217</text>
+          <text x="52" y="105" fill="#777777" font-size="9" font-family="monospace">BLOCKED SUBJECT</text>
+          <line x1="220" y1="83" x2="380" y2="83" stroke="#ffffff" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="300" y="75" fill="#aaaaaa" font-size="9" font-family="monospace" text-anchor="middle">RULE BIO-1</text>
+          <rect x="380" y="45" width="200" height="76" rx="4" fill="#101010" stroke="#555555" stroke-width="1.5"/>
+          <text x="392" y="65" fill="#888888" font-size="9" font-family="monospace" letter-spacing="1">BLOCK DEVICE</text>
+          <text x="392" y="87" fill="#ffffff" font-size="13" font-family="sans-serif" font-weight="600">BlockIoWait</text>
+          <text x="392" y="105" fill="#777777" font-size="9" font-family="monospace">EVIDENCE COMPLETE</text>
+        </svg>
+      </div>
+    </section>
+
+    <section class="card table-card">
+      <div class="section-title">EVIDENCE LEDGER &bull; CAUSAL VS. CORRELATED</div>
+      <div class="table-responsive">
+        <table class="evidence-table">
+          <thead>
+            <tr>
+              <th style="width: 10%;">ID</th>
+              <th style="width: 12%;">RULE</th>
+              <th style="width: 14%;">CLASS</th>
+              <th style="width: 14%;">STRENGTH</th>
+              <th style="width: 50%;">VERIFIED STATEMENT / DISCLAIMER</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="font-mono">E1</td>
+              <td class="font-mono">Bio1</td>
+              <td><span class="badge-class">CAUSAL</span></td>
+              <td class="font-mono small">MODERATE</td>
+              <td class="statement-cell">TID 4217 blocked on device 0x80001 (req 0xdeadbeef, 8 sectors) for 20 ms</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card stats-grid">
+      <div class="stat-box">
+        <div class="stat-label">EVENTS INGESTED</div>
+        <div class="stat-val font-mono">4</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">RING BUFFER LOSS</div>
+        <div class="stat-val font-mono">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">RESERVE FAILURES</div>
+        <div class="stat-val font-mono">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">TRACKED MAP FULL</div>
+        <div class="stat-val font-mono">0</div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div>KATANA LATENCY DIAGNOSTIC ENGINE &bull; DETERMINISTIC RECONSTRUCTION</div>
+      <div>NO HEURISTICS &bull; NO ML INFERENCE &bull; STRICT KERNEL CAUSALITY</div>
+    </footer>
+  </div>
+</body>
+</html>
