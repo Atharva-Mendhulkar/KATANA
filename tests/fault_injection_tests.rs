@@ -649,6 +649,15 @@ fn test_target_identity_and_snapshot_live() {
 
     let verified = katana::target::verify_identity(&target, &target);
     assert!(verified, "Same identity must verify as valid");
+
+    // Test 7: PID reuse test - different start_time or boot_id fails verification (PRD §5.1, §22.2)
+    let mut reused_target = target.clone();
+    reused_target.start_time_ticks += 1000;
+    assert!(!katana::target::verify_identity(&target, &reused_target), "PID reuse with different start_time must fail");
+
+    let mut rebooted_target = target.clone();
+    rebooted_target.boot_id = "11111111-1111-1111-1111-111111111111".to_string();
+    assert!(!katana::target::verify_identity(&target, &rebooted_target), "PID reuse with different boot_id must fail");
 }
 
 #[test]

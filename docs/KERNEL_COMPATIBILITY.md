@@ -1,7 +1,7 @@
 # Katana Kernel Compatibility Matrix
 
 **Document Version:** 1.0 (Milestone M15)  
-**Reference:** [PRD §20, §25, §29](file:///home/topfloorboss/Desktop/KATANA/prd.md#L1376)  
+**Reference:** [PRD §20, §25, §29](../prd.md)  
 **Host Architecture:** x86_64 (Tested locally on CachyOS `7.2.3-1-cachyos`)
 
 ---

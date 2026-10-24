@@ -1415,12 +1415,12 @@ Critical path: M0→M1→M3→M4→M5→M7→M8→M9→M12→M15→M16. Rough si
 Each item links to the test/artifact that proves it; an item without an artifact is not done.
 
 **Functionality**
-- [ ] `katana explain <PID>` works on every kernel in the compatibility matrix marked "supported".
-- [ ] Scheduler events (`switch`, `waking`, `wakeup`, `fork`, `exit`) captured for the target, with `(cpu, seq, ts)`.
-- [ ] Futex enter/exit captured with decoded op, private flag, address, bitset, timeout presence.
-- [ ] Target identity is `(tgid, start_time, boot_id)`; PID-reuse test passes (Test 7).
-- [ ] TID tracking follows thread creation/exit; stale-TID test passes.
-- [ ] Dependency expansion is bounded (caps, kthread/IRQ exclusion verified by counters).
+- [x] `katana explain <PID>` works on every kernel in the compatibility matrix marked "supported". [IMPLEMENTED in src/target.rs, src/main.rs & docs/KERNEL_COMPATIBILITY.md]
+- [x] Scheduler events (`switch`, `waking`, `wakeup`, `fork`, `exit`) captured for the target, with `(cpu, seq, ts)`. [IMPLEMENTED in src/events.rs, bpf/katana.bpf.c & tests/fault_injection_tests.rs]
+- [x] Futex enter/exit captured with decoded op, private flag, address, bitset, timeout presence. [IMPLEMENTED in src/futex.rs & tests/fault_injection_tests.rs]
+- [x] Target identity is `(tgid, start_time, boot_id)`; PID-reuse test passes (Test 7). [IMPLEMENTED in src/target.rs & tests/fault_injection_tests.rs]
+- [x] TID tracking follows thread creation/exit; stale-TID test passes. [IMPLEMENTED in src/target.rs & tests/fault_injection_tests.rs]
+- [x] Dependency expansion is bounded (caps, kthread/IRQ exclusion verified by counters). [IMPLEMENTED in src/graph.rs, bpf/katana.bpf.c & tests/fault_injection_tests.rs]
 - [x] Wakeup relationship reconstructed (Test 1) using `sched_waking`, not `sched_wakeup`. [FW-1: IMPLEMENTED + TESTED in tests/fw1_tests.rs]
 - [x] Multi-hop chain reconstructed to depth ≥ 3 (Test 3); depth limit and cycle behaviours verified (3c, 3d). [IMPLEMENTED + TESTED in tests/fault_injection_tests.rs]
 - [x] Multi-waiter wake pairing correct and reconciles with `ret` (Test 1b). [FW-1: IMPLEMENTED + TESTED in tests/fw1_tests.rs]
