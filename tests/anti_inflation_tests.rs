@@ -253,3 +253,27 @@ fn test_safety_and_forbidden_helper_audit() {
         }
     }
 }
+
+#[test]
+fn test_documentation_and_banned_terms_audit() {
+    // PRD §27, §29: Check README prior art and zero banned buzzwords
+    let readme = std::fs::read_to_string("README.md").expect("README.md must exist");
+    assert!(
+        readme.contains("Prior Art"),
+        "README.md must contain 'Prior Art & Positioning' section per PRD §29"
+    );
+    assert!(
+        readme.contains("Prism") && readme.contains("offwaketime"),
+        "README.md must cite Prism and BCC offwaketime"
+    );
+
+    let banned_terms = ["novel", "first-ever", "ai-powered", "ai powered"];
+    let lower = readme.to_lowercase();
+    for term in &banned_terms {
+        assert!(
+            !lower.contains(term),
+            "ANTI-INFLATION VIOLATION: README contains banned marketing buzzword '{}'",
+            term
+        );
+    }
+}

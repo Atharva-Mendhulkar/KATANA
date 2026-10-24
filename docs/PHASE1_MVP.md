@@ -29,15 +29,15 @@ flowchart TD
 
 | Module | Source File | Core Responsibility |
 |---|---|---|
-| **Scheduler** | [`src/scheduler.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/scheduler.rs) | Thread identity (`ThreadId`), provenance (`EventRef`), waker contexts (`Task`, `Irq`, `Kthread`), and scheduling states. |
-| **Futex** | [`src/futex.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/futex.rs) | Syscall command decoding (`FUTEX_WAIT`, `WAKE`, `LOCK_PI`, `WAIT_BITSET`, etc.), keys (`(scope, tgid, uaddr)`), PI-word snapshot decoding, and wait/wake interval tracking. |
-| **Events & Normalizer** | [`src/events.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/events.rs) | Deterministic sorting `(ts_ns, cpu, seq)` and detection of per-CPU sequence gaps populating `LossLedger`. |
-| **Rule Catalog & Evidence** | [`src/evidence.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/evidence.rs) | Typed evidence with static upper bounds (`rule.max_class()`), monotonicity enforcement, and degradation limitations. |
-| **Causal Graph & Chains** | [`src/graph.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/graph.rs) | Typed nodes and edges, bounded backward chain reconstruction (capped at depth 8), and cycle detection. |
-| **Diagnosis Engine** | [`src/diagnosis.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/diagnosis.rs) | Candidate finding generation, 8-criterion lexicographic ranking model, and ambiguity/contradiction resolution. |
-| **Explanation Renderer** | [`src/renderer.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/renderer.rs) | Template formatting with strict verb-table enforcement against claim inflation. |
-| **Report Output** | [`src/output.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/output.rs) | Serialization adhering to [`schema/report.v1.json`](file:///Users/atharvamendhulkar/desktop/katana/schema/report.v1.json). |
-| **CLI & Entrypoint** | [`src/cli.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/cli.rs), [`src/main.rs`](file:///Users/atharvamendhulkar/desktop/katana/src/main.rs) | Command parsing (`katana explain <PID>`), trace replay, and standard exit codes (0, 1, 2, 3, 4, 10, 11, 14). |
+| **Scheduler** | [`src/scheduler.rs`](../src/scheduler.rs) | Thread identity (`ThreadId`), provenance (`EventRef`), waker contexts (`Task`, `Irq`, `Kthread`), and scheduling states. |
+| **Futex** | [`src/futex.rs`](../src/futex.rs) | Syscall command decoding (`FUTEX_WAIT`, `WAKE`, `LOCK_PI`, `WAIT_BITSET`, etc.), keys (`(scope, tgid, uaddr)`), PI-word snapshot decoding, and wait/wake interval tracking. |
+| **Events & Normalizer** | [`src/events.rs`](../src/events.rs) | Deterministic sorting `(ts_ns, cpu, seq)` and detection of per-CPU sequence gaps populating `LossLedger`. |
+| **Rule Catalog & Evidence** | [`src/evidence.rs`](../src/evidence.rs) | Typed evidence with static upper bounds (`rule.max_class()`), monotonicity enforcement, and degradation limitations. |
+| **Causal Graph & Chains** | [`src/graph.rs`](../src/graph.rs) | Typed nodes and edges, bounded backward chain reconstruction (capped at depth 8), and cycle detection. |
+| **Diagnosis Engine** | [`src/diagnosis.rs`](../src/diagnosis.rs) | Candidate finding generation, 8-criterion lexicographic ranking model, and ambiguity/contradiction resolution. |
+| **Explanation Renderer** | [`src/renderer.rs`](../src/renderer.rs) | Template formatting with strict verb-table enforcement against claim inflation. |
+| **Report Output** | [`src/output.rs`](../src/output.rs) | Serialization adhering to [`schema/report.v1.json`](../schema/report.v1.json). |
+| **CLI & Entrypoint** | [`src/cli.rs`](../src/cli.rs), [`src/main.rs`](../src/main.rs) | Command parsing (`katana explain <PID>`), trace replay, and standard exit codes (0, 1, 2, 3, 4, 10, 11, 14). |
 
 ---
 

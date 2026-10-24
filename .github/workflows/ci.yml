@@ -12,8 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Scope Guard Check
-        run: bash scripts/check-scope.sh bpf
+      - name: Scope & Safety Guard Check
+        run: bash scripts/check-scope.sh bpf src
+      - name: Documentation & Anti-Inflation Gate
+        run: bash scripts/check-docs.sh
       - name: Run Test Suite
         run: cargo test --verbose
 
