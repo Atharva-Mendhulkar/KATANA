@@ -1450,7 +1450,7 @@ Each item links to the test/artifact that proves it; an item without an artifact
 - [x] Every sentence in `--verbose` output maps to evidence ids and raw event refs. [IMPLEMENTED in src/renderer.rs & tests/anti_inflation_tests.rs]
 
 **Safety / security**
-- [ ] No ptrace/signals/priority changes; forbidden-helper CI gate green.
+- [x] No ptrace/signals/priority changes; forbidden-helper CI gate green. [IMPLEMENTED in scripts/check-scope.sh & tests/anti_inflation_tests.rs]
 - [ ] Only the PI futex word is read from user memory.
 - [ ] Privilege requirements documented and tested with CAP_BPF+CAP_PERFMON only (no full root) on at least one kernel.
 

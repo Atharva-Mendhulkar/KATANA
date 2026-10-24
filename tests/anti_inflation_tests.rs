@@ -157,3 +157,99 @@ fn test_verbose_evidence_provenance_mapping() {
     assert!(verbose_out.contains("[E1]"));
     assert!(verbose_out.contains("cpu:1 seq:42"));
 }
+
+#[test]
+fn test_safety_and_forbidden_helper_audit() {
+    // PRD §21.2: Enforce zero target modification and normative helper allow-list
+    let bpf_source = std::path::Path::new("bpf/katana.bpf.c");
+    if bpf_source.exists() {
+        let content = std::fs::read_to_string(bpf_source).expect("bpf/katana.bpf.c must be readable");
+
+        // Forbidden BPF helpers (PRD §21.2)
+        let forbidden_bpf = [
+            "bpf_override_return",
+            "bpf_send_signal",
+            "bpf_send_signal_thread",
+            "bpf_probe_write_user",
+            "bpf_set_retval",
+        ];
+        for f in &forbidden_bpf {
+            assert!(
+                !content.contains(f),
+                "CRITICAL SAFETY VIOLATION: bpf/katana.bpf.c contains forbidden helper '{}'",
+                f
+            );
+        }
+
+        // Normative helper allow-list (PRD §8.2, §21.2)
+        let allowed_helpers = [
+            "bpf_map_lookup_elem",
+            "bpf_map_update_elem",
+            "bpf_map_delete_elem",
+            "bpf_ktime_get_ns",
+            "bpf_get_smp_processor_id",
+            "bpf_get_current_pid_tgid",
+            "bpf_probe_read_user",
+            "bpf_ringbuf_reserve",
+            "bpf_ringbuf_submit",
+            "bpf_ringbuf_discard",
+            "bpf_get_current_task_btf",
+        ];
+
+        // Find all bpf_* function pointer declarations or calls in katana.bpf.c
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if let Some(pos) = trimmed.find("bpf_") {
+                let rest = &trimmed[pos..];
+                let ident: String = rest
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_')
+                    .collect();
+                if ident.starts_with("bpf_") && !ident.starts_with("bpf_map_type") {
+                    assert!(
+                        allowed_helpers.contains(&ident.as_str()),
+                        "UNAPPROVED BPF HELPER: '{}' is not in normative allow-list",
+                        ident
+                    );
+                }
+            }
+        }
+    }
+
+    // Check all Rust sources under src/
+    let mut files_to_check = Vec::new();
+    fn collect_rs_files(dir: &std::path::Path, acc: &mut Vec<std::path::PathBuf>) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    collect_rs_files(&path, acc);
+                } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+                    acc.push(path);
+                }
+            }
+        }
+    }
+    collect_rs_files(std::path::Path::new("src"), &mut files_to_check);
+
+    let forbidden_userspace = [
+        "ptrace",
+        "process_vm_writev",
+        "sched_setscheduler",
+        "setpriority",
+        "bpf_override_return",
+        "bpf_send_signal",
+    ];
+
+    for file in files_to_check {
+        let content = std::fs::read_to_string(&file).expect("source file must be readable");
+        for f in &forbidden_userspace {
+            assert!(
+                !content.contains(f),
+                "CRITICAL SAFETY VIOLATION: {} contains forbidden target modification primitive '{}'",
+                file.display(),
+                f
+            );
+        }
+    }
+}
