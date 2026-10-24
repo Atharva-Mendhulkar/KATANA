@@ -214,7 +214,7 @@ fn run_single_scenario(
 }
 
 /// System environment diagnostics (katana doctor).
-pub fn run_doctor() {
+pub fn run_doctor(btf_override: Option<&str>) {
     println!("{}\n", BANNER);
     println!("\x1b[1;37mKatana Environment & Subsystem Diagnostics (doctor)\x1b[0m\n");
 
@@ -224,14 +224,24 @@ pub fn run_doctor() {
 
     let is_linux = std::env::consts::OS == "linux";
     let has_proc = Path::new("/proc").exists();
-    let has_btf = Path::new("/sys/kernel/btf/vmlinux").exists();
+    let btf_res = crate::target::resolve_btf_path(btf_override);
+    let (has_btf, btf_desc) = match &btf_res {
+        Ok(path) => (true, format!("BTF debug info ({})", path.display())),
+        Err(_) => (
+            false,
+            format!(
+                "BTF debug info ({})",
+                btf_override.unwrap_or("/sys/kernel/btf/vmlinux")
+            ),
+        ),
+    };
     let has_tracefs = Path::new("/sys/kernel/debug/tracing").exists()
         || Path::new("/sys/kernel/tracing").exists();
     let has_root = crate::target::has_root_privileges();
 
     println!("\nKernel & Trace Subsystems:");
     print_check("Linux /proc filesystem", has_proc);
-    print_check("BTF debug info (/sys/kernel/btf/vmlinux)", has_btf);
+    print_check(&btf_desc, has_btf);
     print_check("Tracefs debug events (/sys/kernel/debug/tracing)", has_tracefs);
     print_check("Privileged credentials (UID 0 / CAP_BPF)", has_root);
 
@@ -249,7 +259,7 @@ pub fn run_doctor() {
         } else if !has_root {
             "Requires root privileges or CAP_BPF / CAP_PERFMON"
         } else {
-            "Requires CONFIG_DEBUG_INFO_BTF enabled in kernel"
+            "Requires CONFIG_DEBUG_INFO_BTF enabled in kernel or --btf <path>"
         },
     );
 
@@ -261,6 +271,11 @@ pub fn run_doctor() {
         println!("    \x1b[1;32mkatana demo\x1b[0m                   # Run flagship futex contention demo");
         println!("    \x1b[1;32mkatana demo all\x1b[0m               # Complete 4-scenario architecture tour");
         println!("    \x1b[1;32mkatana demo io --html --open\x1b[0m  # Generate & open interactive SVG visual report");
+    } else if !has_btf {
+        println!("  Kernel BTF is not available at /sys/kernel/btf/vmlinux.");
+        println!("  Supply external BTF or detached debug info:");
+        println!("    \x1b[1;32msudo katana doctor --btf /path/to/vmlinux.btf\x1b[0m");
+        println!("    \x1b[1;32msudo katana explain <PID> --btf /path/to/vmlinux.btf\x1b[0m");
     } else if !has_root {
         println!("  To analyze live Linux processes, re-run with sudo:");
         println!("    \x1b[1;32msudo katana explain <PID>\x1b[0m");

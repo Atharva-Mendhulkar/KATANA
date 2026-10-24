@@ -866,7 +866,7 @@ fn run_bpf_demo<W: Write>(writer: &mut W) {
 
 /// Feature 12: Host Doctor & Environment Diagnostics
 fn run_doctor_demo<W: Write>(_writer: &mut W) {
-    crate::demo::run_doctor();
+    crate::demo::run_doctor(None);
 }
 
 /// Feature 13: High-Throughput Event Processing Microbenchmark

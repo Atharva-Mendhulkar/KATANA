@@ -45,7 +45,7 @@ fn main() {
     }
 
     if cli.command == "doctor" {
-        katana::demo::run_doctor();
+        katana::demo::run_doctor(cli.btf_path.as_deref());
         process::exit(exit_codes::SUCCESS);
     }
 
@@ -149,12 +149,27 @@ fn main() {
             }
         }
 
-        // 4. Privilege check
+        // 4. Kernel compatibility preflight: BTF resolution (PRD §16.2 exit 12, §20, §33)
+        let _btf_path = match target::resolve_btf_path(cli.btf_path.as_deref()) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("katana: kernel unsupported: {}", e);
+                process::exit(exit_codes::KERNEL_UNSUPPORTED); // 12
+            }
+        };
+
+        // 5. Privilege check (PRD §16.2 exit 10)
         if !target::has_root_privileges() {
             eprintln!(
                 "katana: insufficient privileges to attach eBPF programs (CAP_BPF / CAP_PERFMON or root required)"
             );
             process::exit(exit_codes::INSUFFICIENT_PRIVS); // 10
+        }
+
+        // 6. Tracefs tracepoints preflight check (PRD §8.2, §16.2 exit 12)
+        if let Err(e) = target::check_tracefs_tracepoints() {
+            eprintln!("katana: kernel unsupported: {}", e);
+            process::exit(exit_codes::KERNEL_UNSUPPORTED); // 12
         }
 
         if cli.command == "watch" {

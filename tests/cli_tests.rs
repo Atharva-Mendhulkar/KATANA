@@ -299,3 +299,34 @@ fn test_typo_suggestions() {
     let res = parse_args(&to_args("katana docter"));
     assert!(matches!(res, ParseResult::Err(e) if e.contains("Did you mean 'doctor'?")));
 }
+
+#[test]
+fn test_btf_flag_and_preflight() {
+    // Flag parsing
+    let res = parse_args(&to_args("katana explain 4217 --btf /custom/path/vmlinux"));
+    assert!(matches!(res, ParseResult::Ok(cli) if cli.btf_path == Some("/custom/path/vmlinux".to_string())));
+
+    // Missing value
+    let res = parse_args(&to_args("katana explain 4217 --btf"));
+    assert!(matches!(res, ParseResult::Err(e) if e.contains("Missing value for --btf")));
+
+    // resolve_btf_path nonexistent
+    let err = katana::target::resolve_btf_path(Some("/nonexistent/btf/path"));
+    assert!(err.is_err());
+    assert!(err.unwrap_err().contains("does not exist"));
+
+    // resolve_btf_path with real file
+    let tmp = std::env::temp_dir().join("dummy_btf_test");
+    std::fs::write(&tmp, b"BTF_DUMMY").unwrap();
+    let ok = katana::target::resolve_btf_path(Some(tmp.to_str().unwrap()));
+    assert!(ok.is_ok());
+    assert_eq!(ok.unwrap(), tmp);
+    let _ = std::fs::remove_file(tmp);
+
+    // Default discovery (if /sys/kernel/btf/vmlinux exists on this host)
+    if std::path::Path::new("/sys/kernel/btf/vmlinux").is_file() {
+        let def = katana::target::resolve_btf_path(None);
+        assert!(def.is_ok());
+        assert_eq!(def.unwrap(), std::path::PathBuf::from("/sys/kernel/btf/vmlinux"));
+    }
+}

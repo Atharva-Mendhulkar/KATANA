@@ -1,7 +1,98 @@
 //! Target process resolver and identity tracker per PRD §5.1, §7, §31.
 
 use std::fs;
+use std::path::{Path, PathBuf};
 use crate::output::TargetIdentity;
+
+/// Searches candidate locations for BTF information per PRD §20, §33.
+/// 1. If explicit is specified, verifies it exists and is a file.
+/// 2. Checks standard /sys/kernel/btf/vmlinux (CONFIG_DEBUG_INFO_BTF).
+/// 3. Checks distro detached BTF candidate locations using /proc/sys/kernel/osrelease.
+pub fn resolve_btf_path(explicit: Option<&str>) -> Result<PathBuf, String> {
+    if let Some(p) = explicit {
+        let path = PathBuf::from(p);
+        if path.is_file() {
+            return Ok(path);
+        } else {
+            return Err(format!(
+                "specified external BTF file '{}' does not exist or is not a regular file",
+                p
+            ));
+        }
+    }
+
+    // 1. In-kernel BTF via sysfs
+    let standard = PathBuf::from("/sys/kernel/btf/vmlinux");
+    if standard.is_file() {
+        return Ok(standard);
+    }
+
+    // 2. Distro detached BTF paths based on kernel release
+    let osrelease = fs::read_to_string("/proc/sys/kernel/osrelease")
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+
+    let mut candidates = Vec::new();
+    if !osrelease.is_empty() {
+        candidates.push(format!("/boot/vmlinux-{}", osrelease));
+        candidates.push(format!("/usr/lib/modules/{}/vmlinux", osrelease));
+        candidates.push(format!("/usr/lib/debug/boot/vmlinux-{}", osrelease));
+        candidates.push(format!("/usr/lib/debug/lib/modules/{}/vmlinux", osrelease));
+        candidates.push(format!("/etc/katana/btf/vmlinux-{}", osrelease));
+        candidates.push(format!("/boot/vmlinux-{}.btf", osrelease));
+        candidates.push(format!("/usr/lib/modules/{}/kernel/vmlinux.btf", osrelease));
+    }
+    candidates.push("/etc/katana/btf/vmlinux".to_string());
+    candidates.push("/boot/vmlinux".to_string());
+
+    for cand in candidates {
+        let p = PathBuf::from(&cand);
+        if p.is_file() {
+            return Ok(p);
+        }
+    }
+
+    Err(
+        "kernel lacks BTF (CONFIG_DEBUG_INFO_BTF missing at /sys/kernel/btf/vmlinux). Use --btf <path> to specify an external BTF file."
+            .to_string(),
+    )
+}
+
+/// Checks if required kernel tracepoints are present in tracefs (PRD §8.2, §16.2).
+pub fn check_tracefs_tracepoints() -> Result<(), String> {
+    let trace_root = if Path::new("/sys/kernel/tracing/events").is_dir() {
+        Path::new("/sys/kernel/tracing/events")
+    } else if Path::new("/sys/kernel/debug/tracing/events").is_dir() {
+        Path::new("/sys/kernel/debug/tracing/events")
+    } else {
+        return Err("tracefs not mounted at /sys/kernel/tracing or /sys/kernel/debug/tracing".to_string());
+    };
+
+    let required = [
+        "sched/sched_switch",
+        "sched/sched_waking",
+        "sched/sched_wakeup",
+        "sched/sched_process_fork",
+        "sched/sched_process_exit",
+        "syscalls/sys_enter_futex",
+        "syscalls/sys_exit_futex",
+    ];
+
+    for tp in &required {
+        if !trace_root.join(tp).exists() {
+            if tp.starts_with("syscalls/") {
+                return Err(format!(
+                    "kernel lacks required tracepoint '{}' (verify CONFIG_FTRACE_SYSCALLS=y)",
+                    tp
+                ));
+            } else {
+                return Err(format!("kernel lacks required tracepoint '{}'", tp));
+            }
+        }
+    }
+
+    Ok(())
+}
 
 /// Resolves target identity from /proc/<pid>/stat and /proc/sys/kernel/random/boot_id.
 pub fn resolve_target(pid: u32) -> Result<TargetIdentity, String> {

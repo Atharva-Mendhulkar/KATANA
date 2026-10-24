@@ -1440,7 +1440,7 @@ Each item links to the test/artifact that proves it; an item without an artifact
 - [x] Event loss detected by seq gaps and counters; reconciled or flagged unreconciled (Test 5). [IMPLEMENTED in src/events.rs & tests/fault_injection_tests.rs]
 - [x] A chain with a missing key event is not `COMPLETE` (Test 5b). [IMPLEMENTED in tests/fault_injection_tests.rs]
 - [x] Process exit during collection handled (Test 6); no leaked programs after SIGINT/SIGKILL. [IMPLEMENTED in tests/fault_injection_tests.rs]
-- [ ] Unsupported kernel/permissions/verifier/BTF failures produce documented exit codes and messages.
+- [x] Unsupported kernel/permissions/verifier/BTF failures produce documented exit codes and messages. [IMPLEMENTED in src/target.rs, src/cli.rs, src/main.rs & tests/cli_tests.rs]
 
 **Output**
 - [x] Text output matches templates; verb-table lint passes. [IMPLEMENTED in src/renderer.rs & tests/anti_inflation_tests.rs]
