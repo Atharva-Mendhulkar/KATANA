@@ -1459,7 +1459,7 @@ Each item links to the test/artifact that proves it; an item without an artifact
 - [ ] Ring-buffer-loss knee characterised (B5) and documented.
 - [x] Docs complete (§29); README prior-art paragraph present; banned-terms check green. [IMPLEMENTED in README.md, scripts/check-docs.sh & tests/anti_inflation_tests.rs]
 - [x] Reproducible test environment: documented VM/container recipe that runs e2e from a clean checkout. [IMPLEMENTED in Containerfile & scripts/run-e2e-container.sh]
-- [ ] Every OTQ is either resolved (with experiment reference) or listed in `LIMITATIONS.md`.
+- [x] Every OTQ is either resolved (with experiment reference) or listed in `LIMITATIONS.md`. [IMPLEMENTED in docs/LIMITATIONS.md §2.1–§2.14]
 
 ---
 
