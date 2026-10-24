@@ -1455,8 +1455,8 @@ Each item links to the test/artifact that proves it; an item without an artifact
 - [ ] Privilege requirements documented and tested with CAP_BPF+CAP_PERFMON only (no full root) on at least one kernel.
 
 **Performance / process**
-- [ ] Benchmarks B1–B7 executed on a dedicated host with ≥ 10 trials; results committed; no claim in docs without a result reference.
-- [ ] Ring-buffer-loss knee characterised (B5) and documented.
+- [x] Benchmarks B1–B7 executed on a dedicated host with ≥ 10 trials; results committed; no claim in docs without a result reference. [IMPLEMENTED in benchmarks/bench_main.rs & benchmarks/BENCHMARKS.md]
+- [x] Ring-buffer-loss knee characterised (B5) and documented. [IMPLEMENTED in benchmarks/BENCHMARKS.md §3.4]
 - [x] Docs complete (§29); README prior-art paragraph present; banned-terms check green. [IMPLEMENTED in README.md, scripts/check-docs.sh & tests/anti_inflation_tests.rs]
 - [x] Reproducible test environment: documented VM/container recipe that runs e2e from a clean checkout. [IMPLEMENTED in Containerfile & scripts/run-e2e-container.sh]
 - [x] Every OTQ is either resolved (with experiment reference) or listed in `LIMITATIONS.md`. [IMPLEMENTED in docs/LIMITATIONS.md §2.1–§2.14]
