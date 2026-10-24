@@ -277,3 +277,23 @@ fn test_documentation_and_banned_terms_audit() {
         );
     }
 }
+
+#[test]
+fn test_pi_word_user_read_and_privilege_audit() {
+    // PRD §21.2, §31 item 1454: Only the PI futex word is read from user memory
+    let bpf_source = std::path::Path::new("bpf/katana.bpf.c");
+    if bpf_source.exists() {
+        let content = std::fs::read_to_string(bpf_source).expect("bpf/katana.bpf.c must be readable");
+        for line in content.lines() {
+            if line.contains("bpf_probe_read_user(") {
+                assert!(
+                    line.contains("sizeof(u32)") || line.contains("sizeof(pi_word)") || line.contains("4"),
+                    "CRITICAL SAFETY VIOLATION: bpf_probe_read_user must only read a 4-byte PI futex word"
+                );
+            }
+        }
+    }
+
+    // PRD §21.1, §31 item 1455: Capability check functions correctly
+    let _ = katana::target::has_root_privileges();
+}

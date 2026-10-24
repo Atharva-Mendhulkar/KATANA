@@ -211,17 +211,34 @@ pub fn verify_identity(initial: &TargetIdentity, current: &TargetIdentity) -> bo
         && initial.boot_id == current.boot_id
 }
 
-/// Checks if current process has root/privileged effective UID (PRD §16.2 exit 10).
+/// Checks if current process has root effective UID or CAP_BPF / CAP_PERFMON / CAP_SYS_ADMIN capabilities (PRD §16.2 exit 10, §21.1).
 pub fn has_root_privileges() -> bool {
     if let Ok(status) = fs::read_to_string("/proc/self/status") {
+        let mut is_euid_zero = false;
+        let mut has_bpf_caps = false;
+
         for line in status.lines() {
             if line.starts_with("Uid:") {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if let Some(euid_str) = parts.get(2) {
-                    return *euid_str == "0";
+                    is_euid_zero = *euid_str == "0";
+                }
+            } else if line.starts_with("CapEff:") {
+                if let Some(hex_str) = line.split_whitespace().nth(1) {
+                    if let Ok(caps) = u64::from_str_radix(hex_str, 16) {
+                        const CAP_SYS_ADMIN: u64 = 1 << 21;
+                        const CAP_PERFMON: u64 = 1 << 38;
+                        const CAP_BPF: u64 = 1 << 39;
+
+                        // Root capabilities or modern non-root CAP_BPF + CAP_PERFMON (Linux >= 5.8)
+                        if (caps & CAP_SYS_ADMIN) != 0 || ((caps & CAP_BPF) != 0 && (caps & CAP_PERFMON) != 0) {
+                            has_bpf_caps = true;
+                        }
+                    }
                 }
             }
         }
+        return is_euid_zero || has_bpf_caps;
     }
     false
 }

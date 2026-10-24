@@ -1,7 +1,7 @@
 # Katana Development Guide
 
 > **Developer Setup, Build Dependencies, and Verification Workflow**  
-> Reference: [prd.md §29, §20](file:///home/topfloorboss/Desktop/KATANA/prd.md)
+> Reference: [prd.md §29, §20](../prd.md)
 
 ---
 
@@ -80,7 +80,7 @@ Microbenchmarks measure disk I/O commit latency, eBPF packet decoding speed, and
 cargo run --release --bin katana-bench
 ```
 
-Benchmark results and methodology are documented in [`benchmarks/BENCHMARKS.md`](file:///home/topfloorboss/Desktop/KATANA/benchmarks/BENCHMARKS.md).
+Benchmark results and methodology are documented in [`benchmarks/BENCHMARKS.md`](../benchmarks/BENCHMARKS.md).
 
 ---
 

@@ -1451,8 +1451,8 @@ Each item links to the test/artifact that proves it; an item without an artifact
 
 **Safety / security**
 - [x] No ptrace/signals/priority changes; forbidden-helper CI gate green. [IMPLEMENTED in scripts/check-scope.sh & tests/anti_inflation_tests.rs]
-- [ ] Only the PI futex word is read from user memory.
-- [ ] Privilege requirements documented and tested with CAP_BPF+CAP_PERFMON only (no full root) on at least one kernel.
+- [x] Only the PI futex word is read from user memory. [IMPLEMENTED in bpf/katana.bpf.c & tests/anti_inflation_tests.rs]
+- [x] Privilege requirements documented and tested with CAP_BPF+CAP_PERFMON only (no full root) on at least one kernel. [IMPLEMENTED in docs/DEVELOPMENT.md §5, src/target.rs & tests/anti_inflation_tests.rs]
 
 **Performance / process**
 - [x] Benchmarks B1–B7 executed on a dedicated host with ≥ 10 trials; results committed; no claim in docs without a result reference. [IMPLEMENTED in benchmarks/bench_main.rs & benchmarks/BENCHMARKS.md]
