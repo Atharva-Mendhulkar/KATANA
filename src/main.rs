@@ -4,7 +4,7 @@ use std::process;
 
 use katana::cli::{exit_codes, parse_args, ParseResult};
 use katana::diagnosis::DiagStatus;
-use katana::events::{Event, LossLedger};
+use katana::events::LossLedger;
 use katana::output::TargetIdentity;
 use katana::renderer::render_diagnosis;
 use katana::target;
@@ -77,7 +77,7 @@ fn main() {
         process::exit(exit_codes::SUCCESS);
     }
 
-    let (target_ident, events, loss_ledger) = if let Some(replay_path) = &cli.replay_path {
+    let (target_ident, events, loss_ledger, initial_snapshot) = if let Some(replay_path) = &cli.replay_path {
         let content = match fs::read_to_string(replay_path) {
             Ok(c) => c,
             Err(e) => {
@@ -86,22 +86,21 @@ fn main() {
             }
         };
 
-        let evs: Vec<Event> = match serde_json::from_str(&content) {
-            Ok(v) => v,
+        match katana::bundle::TraceBundle::load_or_raw(&content) {
+            Ok((ident, evs, ledger, snapshot)) => {
+                let target_pid = cli.pid.unwrap_or(ident.pid);
+                let final_ident = TargetIdentity {
+                    pid: target_pid,
+                    tgid: target_pid,
+                    ..ident
+                };
+                (final_ident, evs, ledger, snapshot)
+            }
             Err(e) => {
-                eprintln!("Failed to parse replay file as JSON Event stream: {}", e);
+                eprintln!("Failed to parse replay file: {}", e);
                 process::exit(exit_codes::INTERNAL_ERROR);
             }
-        };
-        let target_pid = cli.pid.unwrap_or_else(|| evs.first().map_or(1, |e| e.thread.tgid));
-        let ident = TargetIdentity {
-            tgid: target_pid,
-            pid: target_pid,
-            comm: "target".to_string(),
-            start_time_ticks: 123456,
-            boot_id: "00000000-0000-0000-0000-000000000000".to_string(),
-        };
-        (ident, evs, LossLedger::new())
+        }
     } else if let Some(target_pid) = cli.pid {
         // Live mode per PRD §5.1, §7.1, §16.2:
         // 1. Resolve target identity
@@ -185,7 +184,7 @@ fn main() {
             eprintln!("katana: target PID {} exited during observation window", target_pid);
         }
 
-        (initial_ident, Vec::new(), LossLedger::new())
+        (initial_ident, Vec::new(), LossLedger::new(), Some(initial_snapshot))
     } else {
         eprintln!("katana: missing PID");
         process::exit(exit_codes::USAGE_ERROR);
@@ -250,7 +249,25 @@ fn main() {
     }
 
     let engine = Engine::new(cli.max_depth);
-    let report = engine.analyze_with_identity(target_ident, cli.tid, events, loss_ledger);
+    let report = engine.analyze_with_identity(target_ident, cli.tid, events.clone(), loss_ledger.clone());
+
+    if let Some(bundle_path) = &cli.bundle_path {
+        let bundle = katana::bundle::TraceBundle::create(
+            report.target.clone(),
+            initial_snapshot,
+            events,
+            loss_ledger,
+        );
+        if let Err(e) = bundle.save_to_file(bundle_path) {
+            eprintln!("katana: failed to export trace bundle: {}", e);
+        } else {
+            eprintln!(
+                "katana: exported verified trace bundle (SHA-256: {}) to {}",
+                &bundle.metadata.checksum_sha256[..12],
+                bundle_path
+            );
+        }
+    }
 
     if let Some(html_path) = &cli.html_path {
         if let Err(e) = katana::html_export::export_html_file(&report, html_path) {

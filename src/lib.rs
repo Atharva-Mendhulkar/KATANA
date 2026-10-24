@@ -1,4 +1,5 @@
 pub mod block_io;
+pub mod bundle;
 pub mod cli;
 pub mod demo;
 pub mod diagnosis;

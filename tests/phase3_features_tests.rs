@@ -236,3 +236,97 @@ fn test_watch_mode_retention_capacity_bounding() {
         "Retention buffer must never exceed configured capacity"
     );
 }
+
+#[test]
+fn test_trace_bundle_export_and_replay_roundtrip() {
+    use katana::bundle::TraceBundle;
+    use katana::diagnosis::DiagStatus;
+
+    let trace_data = include_str!("../fixtures/bio1_sync_io.json");
+    let events: Vec<Event> = serde_json::from_str(trace_data).expect("valid fixture");
+    let ident = make_ident(4217);
+
+    // 1. Create bundle
+    let bundle = TraceBundle::create(ident.clone(), None, events.clone(), LossLedger::new());
+    assert_eq!(bundle.metadata.target_pid, 4217);
+    assert_eq!(bundle.metadata.event_count, events.len());
+    assert!(bundle.verify_integrity().is_ok());
+
+    // 2. Serialize to bundle string (simulating .katana file)
+    let bundle_json = serde_json::to_string_pretty(&bundle).expect("serialization succeeds");
+
+    // 3. Load via TraceBundle::load_or_raw
+    let (loaded_ident, loaded_evs, loaded_loss, _) =
+        TraceBundle::load_or_raw(&bundle_json).expect("load succeeds");
+    assert_eq!(loaded_ident.pid, 4217);
+    assert_eq!(loaded_evs.len(), events.len());
+
+    // 4. Verify that running engine on loaded bundle gives identical diagnosis
+    let engine = Engine::new(8);
+    let report_original = engine.analyze_with_identity(ident, Some(4217), events, LossLedger::new());
+    let report_loaded = engine.analyze_with_identity(loaded_ident, Some(4217), loaded_evs, loaded_loss);
+
+    assert_eq!(report_original.diagnosis.status, DiagStatus::Found);
+    assert_eq!(report_original.diagnosis.status, report_loaded.diagnosis.status);
+    assert_eq!(
+        report_original.diagnosis.primary.as_ref().unwrap().kind,
+        report_loaded.diagnosis.primary.as_ref().unwrap().kind
+    );
+}
+
+#[test]
+fn test_trace_bundle_tamper_detection() {
+    use katana::bundle::TraceBundle;
+
+    let trace_data = include_str!("../fixtures/bio1_sync_io.json");
+    let events: Vec<Event> = serde_json::from_str(trace_data).expect("valid fixture");
+    let ident = make_ident(4217);
+
+    let bundle = TraceBundle::create(ident, None, events, LossLedger::new());
+    assert!(bundle.verify_integrity().is_ok());
+
+    // Tamper with serialized JSON payload
+    let mut bundle_json = serde_json::to_string(&bundle).unwrap();
+    // Tamper with an event sequence number inside the JSON
+    bundle_json = bundle_json.replace("\"seq\":1", "\"seq\":9999");
+
+    let load_res = TraceBundle::load_or_raw(&bundle_json);
+    assert!(
+        load_res.is_err(),
+        "Tampered trace bundle must fail integrity verification"
+    );
+    let err = load_res.unwrap_err();
+    assert!(err.contains("checksum mismatch"));
+}
+
+#[test]
+fn test_cli_bundle_flag_parsing() {
+    use katana::cli::{parse_args, ParseResult};
+
+    // Default bundle path
+    let args1 = vec!["katana".to_string(), "explain".to_string(), "4217".to_string(), "--bundle".to_string()];
+    match parse_args(&args1) {
+        ParseResult::Ok(cli) => {
+            assert_eq!(cli.bundle_path, Some("katana_trace.bundle".to_string()));
+            assert_eq!(cli.pid, Some(4217));
+        }
+        other => panic!("Expected Ok, got {:?}", other),
+    }
+
+    // Explicit custom bundle path
+    let args2 = vec![
+        "katana".to_string(),
+        "explain".to_string(),
+        "4217".to_string(),
+        "--bundle".to_string(),
+        "custom_incident.katana".to_string(),
+    ];
+    match parse_args(&args2) {
+        ParseResult::Ok(cli) => {
+            assert_eq!(cli.bundle_path, Some("custom_incident.katana".to_string()));
+            assert_eq!(cli.pid, Some(4217));
+        }
+        other => panic!("Expected Ok, got {:?}", other),
+    }
+}
+

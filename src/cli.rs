@@ -39,6 +39,7 @@ Options:
   --capacity <N>        Alias for --retention
   --max-episodes <N>    Exit watch mode after N detected episodes
   --html [path]         Export self-contained static HTML report (default: katana_report.html)
+  --bundle [path]       Export self-contained trace bundle (.katana) with SHA-256 integrity
   --open                Automatically open exported HTML report in default web browser
   --json                Emit report as JSON to stdout
   --verbose             Include detailed event provenance
@@ -59,6 +60,7 @@ pub struct CliArgs {
     pub max_episodes: Option<usize>,
     pub json: bool,
     pub html_path: Option<String>,
+    pub bundle_path: Option<String>,
     pub open_browser: bool,
     pub verbose: bool,
     pub max_depth: usize,
@@ -78,6 +80,7 @@ impl Default for CliArgs {
             max_episodes: None,
             json: false,
             html_path: None,
+            bundle_path: None,
             open_browser: false,
             verbose: false,
             max_depth: 8,
@@ -260,6 +263,19 @@ pub fn parse_args(args: &[String]) -> ParseResult {
                     }
                 } else {
                     cli.html_path = Some("katana_report.html".to_string());
+                }
+            }
+            "--bundle" => {
+                if i + 1 < args.len() && !args[i + 1].starts_with("--") {
+                    let next = &args[i + 1];
+                    if cli.pid.is_none() && next.chars().all(|c| c.is_ascii_digit()) && !next.ends_with(".katana") && !next.ends_with(".bundle") {
+                        cli.bundle_path = Some("katana_trace.bundle".to_string());
+                    } else {
+                        i += 1;
+                        cli.bundle_path = Some(next.clone());
+                    }
+                } else {
+                    cli.bundle_path = Some("katana_trace.bundle".to_string());
                 }
             }
             "--open" => {
