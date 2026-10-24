@@ -1,7 +1,7 @@
 # Katana Testing Guide
 
 > **Test Architecture, Fault Injection Suites, and Reproducibility**  
-> Reference: [prd.md §22, §26](file:///home/topfloorboss/Desktop/KATANA/prd.md)
+> Reference: [prd.md §22, §26](../prd.md)
 
 ---
 

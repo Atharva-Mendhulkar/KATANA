@@ -1,7 +1,7 @@
 # Katana Architecture
 
 > **Deterministic Latency Root-Cause Analysis for Linux**  
-> Reference: [prd.md §7–§12](file:///home/topfloorboss/Desktop/KATANA/prd.md)
+> Reference: [prd.md §7–§12](../prd.md)
 
 ---
 
@@ -40,18 +40,18 @@ Katana's architecture strictly maps to the modular Rust components in `src/`:
 
 | Component | Source File | Responsibility | Inputs | Outputs |
 |---|---|---|---|---|
-| **Target Resolver** | [`src/target.rs`](file:///home/topfloorboss/Desktop/KATANA/src/target.rs) | Live `/proc/<pid>` snapshotting, target identity `(tgid, start_time_ticks, boot_id)`, PID reuse validation (exit 4), privilege check (exit 10). | Target PID / TID, `/proc` | `TargetIdentity`, `ProcSnapshot` |
-| **In-Kernel eBPF** | [`bpf/katana.bpf.c`](file:///home/topfloorboss/Desktop/KATANA/bpf/katana.bpf.c), [`bpf/katana.h`](file:///home/topfloorboss/Desktop/KATANA/bpf/katana.h) | In-kernel filtering against tracked PID hash map, fixed-size wire encoding, ring buffer emission, drop accounting. | Tracepoints | Ring buffer frames, map counters |
-| **Wire Decoder & Normalizer** | [`src/events.rs`](file:///home/topfloorboss/Desktop/KATANA/src/events.rs) | Unpacks `kt_hdr` binary frames (`Event::decode_raw`), validates record bounds, orders events by timestamp `t_mono_ns`, tracks sequence gaps via `LossLedger`. | Raw byte buffers | `Vec<Event>`, `LossLedger` |
-| **Futex Inspector** | [`src/futex.rs`](file:///home/topfloorboss/Desktop/KATANA/src/futex.rs) | Decodes futex operations (`FUTEX_WAIT`, `FUTEX_WAKE`, `FUTEX_LOCK_PI`), parses flags (private vs. shared), detects unsupported `futex_waitv` (futex2). | Syscall events | `FutexWaitWindow`, `FutexWakeWindow` |
-| **Block I/O Subsystem** | [`src/block_io.rs`](file:///home/topfloorboss/Desktop/KATANA/src/block_io.rs) | Tracks bio/request lifecycles (`block_rq_issue` to `block_rq_complete`), sysfs device resolution (`/sys/dev/block/<major>:<minor>`), executes BIO-1 (direct sync) and BIO-2 (writeback correlation). | Block events, sysfs | Block intervals, device metrics |
-| **Causal Graph & Rules** | [`src/causal_rules.rs`](file:///home/topfloorboss/Desktop/KATANA/src/causal_rules.rs) | Reconstructs wake chains (Rule FW-1), matches wakers within wait windows, enforces depth bounds (depth ≤ 8), cycles, and waker exclusions (IRQ/kthread). | Intervals, Events | `CausalGraph` (nodes & edges) |
-| **Evidence Model** | [`src/evidence.rs`](file:///home/topfloorboss/Desktop/KATANA/src/evidence.rs) | Formal evidence classification (`Causal`, `Correlated`, `Observed`), strength grading (`Direct`, `Derived`, `Weak`), monotonic ceiling enforcement. | Causal edges, stats | `Vec<Evidence>` |
-| **Diagnosis Engine** | [`src/diagnosis.rs`](file:///home/topfloorboss/Desktop/KATANA/src/diagnosis.rs) | Lexicographically ranks findings, detects contradictions (`Ambiguous`), handles negative controls (`NotBlocked`, `Unknown`). | Evidence set, Graph | `Diagnosis` |
-| **Renderer** | [`src/renderer.rs`](file:///home/topfloorboss/Desktop/KATANA/src/renderer.rs) | Plain text output generation strictly governed by the allowed-verb table; enforces disclaimer injection for correlated findings. | `Diagnosis`, Evidence | Formatted stdout text |
-| **Static HTML Visualizer** | [`src/html_export.rs`](file:///home/topfloorboss/Desktop/KATANA/src/html_export.rs) | Self-contained, zero-dependency monochrome HTML5 export with vector SVG causal topology graph (strictly zero emojis, minimalist Swiss design). | `Report` | Standalone HTML5 document |
-| **Continuous Watcher** | [`src/watcher.rs`](file:///home/topfloorboss/Desktop/KATANA/src/watcher.rs) | Ring-buffer continuous monitoring with bounded circular retention buffer; triggers anomaly analysis when off-CPU latency exceeds threshold. | Event stream, threshold | Anomaly diagnosis reports |
-| **Output & CLI** | [`src/output.rs`](file:///home/topfloorboss/Desktop/KATANA/src/output.rs), [`src/cli.rs`](file:///home/topfloorboss/Desktop/KATANA/src/cli.rs) | Schema-compliant JSON serialization (`schema/report.v1.json`), exit code dispatch (0, 1, 2, 3, 4, 10, 11, 14). | Diagnosis, CLI flags | JSON stdout, exit code |
+| **Target Resolver** | [`src/target.rs`](../src/target.rs) | Live `/proc/<pid>` snapshotting, target identity `(tgid, start_time_ticks, boot_id)`, PID reuse validation (exit 4), privilege check (exit 10). | Target PID / TID, `/proc` | `TargetIdentity`, `ProcSnapshot` |
+| **In-Kernel eBPF** | [`bpf/katana.bpf.c`](../bpf/katana.bpf.c), [`bpf/katana.h`](../bpf/katana.h) | In-kernel filtering against tracked PID hash map, fixed-size wire encoding, ring buffer emission, drop accounting. | Tracepoints | Ring buffer frames, map counters |
+| **Wire Decoder & Normalizer** | [`src/events.rs`](../src/events.rs) | Unpacks `kt_hdr` binary frames (`Event::decode_raw`), validates record bounds, orders events by timestamp `t_mono_ns`, tracks sequence gaps via `LossLedger`. | Raw byte buffers | `Vec<Event>`, `LossLedger` |
+| **Futex Inspector** | [`src/futex.rs`](../src/futex.rs) | Decodes futex operations (`FUTEX_WAIT`, `FUTEX_WAKE`, `FUTEX_LOCK_PI`), parses flags (private vs. shared), detects unsupported `futex_waitv` (futex2). | Syscall events | `FutexWaitWindow`, `FutexWakeWindow` |
+| **Block I/O Subsystem** | [`src/block_io.rs`](../src/block_io.rs) | Tracks bio/request lifecycles (`block_rq_issue` to `block_rq_complete`), sysfs device resolution (`/sys/dev/block/<major>:<minor>`), executes BIO-1 (direct sync) and BIO-2 (writeback correlation). | Block events, sysfs | Block intervals, device metrics |
+| **Causal Graph & Rules** | [`src/causal_rules.rs`](../src/causal_rules.rs) | Reconstructs wake chains (Rule FW-1), matches wakers within wait windows, enforces depth bounds (depth ≤ 8), cycles, and waker exclusions (IRQ/kthread). | Intervals, Events | `CausalGraph` (nodes & edges) |
+| **Evidence Model** | [`src/evidence.rs`](../src/evidence.rs) | Formal evidence classification (`Causal`, `Correlated`, `Observed`), strength grading (`Direct`, `Derived`, `Weak`), monotonic ceiling enforcement. | Causal edges, stats | `Vec<Evidence>` |
+| **Diagnosis Engine** | [`src/diagnosis.rs`](../src/diagnosis.rs) | Lexicographically ranks findings, detects contradictions (`Ambiguous`), handles negative controls (`NotBlocked`, `Unknown`). | Evidence set, Graph | `Diagnosis` |
+| **Renderer** | [`src/renderer.rs`](../src/renderer.rs) | Plain text output generation strictly governed by the allowed-verb table; enforces disclaimer injection for correlated findings. | `Diagnosis`, Evidence | Formatted stdout text |
+| **Static HTML Visualizer** | [`src/html_export.rs`](../src/html_export.rs) | Self-contained, zero-dependency monochrome HTML5 export with vector SVG causal topology graph (strictly zero emojis, minimalist Swiss design). | `Report` | Standalone HTML5 document |
+| **Continuous Watcher** | [`src/watcher.rs`](../src/watcher.rs) | Ring-buffer continuous monitoring with bounded circular retention buffer; triggers anomaly analysis when off-CPU latency exceeds threshold. | Event stream, threshold | Anomaly diagnosis reports |
+| **Output & CLI** | [`src/output.rs`](../src/output.rs), [`src/cli.rs`](../src/cli.rs) | Schema-compliant JSON serialization (`schema/report.v1.json`), exit code dispatch (0, 1, 2, 3, 4, 10, 11, 14). | Diagnosis, CLI flags | JSON stdout, exit code |
 
 ---
 
@@ -76,7 +76,7 @@ Katana deliberately rejects complex asynchronous runtimes (e.g. Tokio) in favor 
 
 ## 4. eBPF Hook Allow-List
 
-Katana adheres to a minimal, strictly verified set of normative tracepoints audited by [`scripts/check-scope.sh`](file:///home/topfloorboss/Desktop/KATANA/scripts/check-scope.sh):
+Katana adheres to a minimal, strictly verified set of normative tracepoints audited by [`scripts/check-scope.sh`](../scripts/check-scope.sh):
 
 | Tracepoint Subsystem | Hook Name | Purpose |
 |---|---|---|

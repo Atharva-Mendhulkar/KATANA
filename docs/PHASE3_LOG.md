@@ -1,6 +1,6 @@
 # Phase 3 Implementation Log: Visualizer & Watch Mode
 
-> Reference: [prd.md §33](file:///home/topfloorboss/Desktop/KATANA/prd.md), [docs/ARCHITECTURE.md](file:///home/topfloorboss/Desktop/KATANA/docs/ARCHITECTURE.md)
+> Reference: [prd.md §33](../prd.md), [docs/ARCHITECTURE.md](ARCHITECTURE.md)
 
 ---
 
@@ -23,28 +23,28 @@ In accordance with PRD §33 and user instructions, Phase 3 introduced:
 
 ## 2. Implemented Components
 
-- [`src/html_export.rs`](file:///home/topfloorboss/Desktop/KATANA/src/html_export.rs):
+- [`src/html_export.rs`](../src/html_export.rs):
   - `render_html_report(&Report) -> String`
   - `export_html_file(&Report, &str) -> std::io::Result<()>`
   - Inline vector SVG generator mapping thread nodes, causality rules, hop counters, terminal reasons, and block devices.
   - Formatted evidence ledger and system ingestion statistics table.
-- [`src/watcher.rs`](file:///home/topfloorboss/Desktop/KATANA/src/watcher.rs):
+- [`src/watcher.rs`](../src/watcher.rs):
   - `WatchConfig`: configuration for threshold, retention capacity, max episodes, JSON, HTML export.
   - `Watcher`: streaming state machine with bounded circular buffer, off-CPU interval tracking, and episode trigger logic.
   - `process_event_stream`: streaming consumer for deterministic replay testing.
-- [`src/cli.rs`](file:///home/topfloorboss/Desktop/KATANA/src/cli.rs):
+- [`src/cli.rs`](../src/cli.rs):
   - Updated argument parser supporting `katana explain` and `katana watch`.
   - Added flags: `--html [path]`, `--threshold <ms>`, `--retention <N>`, `--max-episodes <N>`.
-- [`src/main.rs`](file:///home/topfloorboss/Desktop/KATANA/src/main.rs):
+- [`src/main.rs`](../src/main.rs):
   - Integrated watch mode loop and HTML export dispatch for both explain and watch commands.
-- [`docs/adr/0014-static-html-graph-visualization.md`](file:///home/topfloorboss/Desktop/KATANA/docs/adr/0014-static-html-graph-visualization.md): Architecture Decision Record for static HTML visualizer.
-- [`docs/adr/0015-continuous-watch-mode.md`](file:///home/topfloorboss/Desktop/KATANA/docs/adr/0015-continuous-watch-mode.md): Architecture Decision Record for continuous watch mode with bounded retention.
+- [`docs/adr/0014-static-html-graph-visualization.md`](adr/0014-static-html-graph-visualization.md): Architecture Decision Record for static HTML visualizer.
+- [`docs/adr/0015-continuous-watch-mode.md`](adr/0015-continuous-watch-mode.md): Architecture Decision Record for continuous watch mode with bounded retention.
 
 ---
 
 ## 3. Test Matrix (33 / 33 Tests Passing)
 
-Added [`tests/phase3_features_tests.rs`](file:///home/topfloorboss/Desktop/KATANA/tests/phase3_features_tests.rs):
+Added [`tests/phase3_features_tests.rs`](../tests/phase3_features_tests.rs):
 - `test_html_export_validity_and_anti_emoji_lint`: Validates HTML5 doctype, SVG elements, monochrome color scheme, and verifies that **0 emojis** exist across the entire output.
 - `test_html_export_multi_hop_chain_fixture`: Validates rendering against golden block I/O trace fixture (`fixtures/bio2_writeback.json`).
 - `test_watch_mode_threshold_triggering`: Validates that a 10ms sleep does not trigger 50ms threshold, while a 70ms sleep reliably triggers an anomaly episode.

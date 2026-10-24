@@ -44,17 +44,14 @@ while IFS= read -r match; do
     if [[ "$target" =~ ^https?:// ]] || [[ "$target" =~ ^mailto: ]] || [[ "$target" =~ ^# ]] || [[ -z "$target" ]]; then
         continue
     fi
-    clean_target="${target#file://}"
-    if [[ "$clean_target" == /* ]]; then
-        if [ ! -e "$clean_target" ]; then
-            echo "BROKEN LINK: $clean_target in $file" >&2
-            FAIL=1
-        fi
-    else
-        if [ ! -e "$dir/$clean_target" ]; then
-            echo "BROKEN LINK: $clean_target (resolved from $dir) in $file" >&2
-            FAIL=1
-        fi
+    if [[ "$target" =~ ^file:// ]] || [[ "$target" == /* ]]; then
+        echo "PORTABILITY ERROR: Absolute or file:// path forbidden in documentation: '$target' in $file (use repository-relative paths instead)" >&2
+        FAIL=1
+        continue
+    fi
+    if [ ! -e "$dir/$target" ]; then
+        echo "BROKEN LINK: $target (resolved from $dir) in $file" >&2
+        FAIL=1
     fi
 done < <(grep -rnIE '\[[^]]+\]\([^)]+\)' "$README" "$DOCS_DIR" || true)
 

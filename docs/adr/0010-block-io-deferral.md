@@ -1,6 +1,6 @@
 # ADR-010: Deferral of Block I/O Subsystem to Phase 2
 
-- **Status:** Superseded by [ADR-013](file:///home/topfloorboss/Desktop/KATANA/docs/adr/0013-phase2-block-io-attribution.md)
+- **Status:** Superseded by [ADR-013](0013-phase2-block-io-attribution.md)
 - **Deciders:** Katana Engineering Team
 - **Date:** Phase 1 Inception
 

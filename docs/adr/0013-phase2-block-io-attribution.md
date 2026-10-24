@@ -1,6 +1,6 @@
 # ADR-013: Phase 2 Block I/O Attribution Rules (BIO-1 and BIO-2)
 
-- **Status:** Accepted (Supersedes [ADR-010](file:///home/topfloorboss/Desktop/KATANA/docs/adr/0010-block-io-deferral.md))
+- **Status:** Accepted (Supersedes [ADR-010](0010-block-io-deferral.md))
 - **Deciders:** Katana Engineering Team
 - **Date:** Phase 2 Implementation
 

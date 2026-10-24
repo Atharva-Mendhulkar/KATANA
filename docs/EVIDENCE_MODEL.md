@@ -1,7 +1,7 @@
 # Katana Evidence Model & Allowed-Verb Specification
 
 **Document Version:** 1.0  
-**Reference:** [PRD §13 (Evidence Model)](file:///home/topfloorboss/Desktop/KATANA/prd.md#L664), [PRD §15 (Explanation Engine)](file:///home/topfloorboss/Desktop/KATANA/prd.md#L777), [PRD §29](file:///home/topfloorboss/Desktop/KATANA/prd.md#L1378)
+**Reference:** [PRD §13 (Evidence Model)](../prd.md#L664), [PRD §15 (Explanation Engine)](../prd.md#L777), [PRD §29](../prd.md#L1378)
 
 ---
 
